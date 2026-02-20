@@ -9,7 +9,6 @@ import { Separator } from "@/components/ui/separator"
 import { getSupabase } from "@/lib/supabase"
 import type { Participant, Task } from "@/lib/types"
 
-const TOTAL_COINS = 10
 const FEWER_TASKS_ID = "__fewer_tasks__"
 
 type CoinMap = Record<string, number>
@@ -68,11 +67,13 @@ function VotingInterface({
   participant,
   tasks,
   sessionId,
+  totalCoins,
   onSubmitted,
 }: {
   participant: Participant
   tasks: Task[]
   sessionId: string
+  totalCoins: number
   onSubmitted: () => void
 }) {
   const [coins, setCoins] = useState<CoinMap>(buildInitialCoins(tasks))
@@ -80,7 +81,7 @@ function VotingInterface({
   const [error, setError] = useState<string | null>(null)
 
   const spent = Object.values(coins).reduce((a, b) => a + b, 0)
-  const remaining = TOTAL_COINS - spent
+  const remaining = totalCoins - spent
 
   function increment(id: string) {
     if (remaining <= 0) return
@@ -176,7 +177,7 @@ function VotingInterface({
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Hi, {participant.name}!</h1>
           <p className="text-muted-foreground mt-1">
-            Distribute your 10 coins to express task preferences.
+            Distribute your {totalCoins} coins to express task preferences.
           </p>
         </div>
 
@@ -187,7 +188,7 @@ function VotingInterface({
               variant={remaining === 0 ? "default" : "secondary"}
               className="text-lg px-3 py-1"
             >
-              {remaining} / {TOTAL_COINS}
+              {remaining} / {totalCoins}
             </Badge>
           </CardContent>
         </Card>
@@ -248,6 +249,7 @@ export default function SessionPage() {
 
   const [participants, setParticipants] = useState<Participant[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [totalCoins, setTotalCoins] = useState(10)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
@@ -261,23 +263,33 @@ export default function SessionPage() {
         // Restore previously selected participant from localStorage
         const savedId = localStorage.getItem(`participant:${sessionId}`)
 
-        const [{ data: participantsData, error: pErr }, { data: tasksData, error: tErr }] =
-          await Promise.all([
-            supabase
-              .from("participants")
-              .select("*")
-              .eq("session_id", sessionId)
-              .order("name"),
-            supabase
-              .from("tasks")
-              .select("*")
-              .eq("session_id", sessionId)
-              .order("position"),
-          ])
+        const [
+          { data: sessionData, error: sErr },
+          { data: participantsData, error: pErr },
+          { data: tasksData, error: tErr },
+        ] = await Promise.all([
+          supabase
+            .from("sessions")
+            .select("coins_per_participant")
+            .eq("id", sessionId)
+            .single(),
+          supabase
+            .from("participants")
+            .select("*")
+            .eq("session_id", sessionId)
+            .order("name"),
+          supabase
+            .from("tasks")
+            .select("*")
+            .eq("session_id", sessionId)
+            .order("position"),
+        ])
 
+        if (sErr) throw sErr
         if (pErr) throw pErr
         if (tErr) throw tErr
 
+        setTotalCoins(sessionData?.coins_per_participant ?? 10)
         setParticipants(participantsData ?? [])
         setTasks(tasksData ?? [])
 
@@ -353,6 +365,7 @@ export default function SessionPage() {
       participant={selectedParticipant}
       tasks={tasks}
       sessionId={sessionId}
+      totalCoins={totalCoins}
       onSubmitted={handleSubmitted}
     />
   )

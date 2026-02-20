@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
 import { getSupabase } from "@/lib/supabase"
 
 export default function HomePage() {
   const router = useRouter()
   const [hostName, setHostName] = useState("")
+  const [coinsPerParticipant, setCoinsPerParticipant] = useState(10)
   const [participants, setParticipants] = useState<string[]>(["", ""])
   const [tasks, setTasks] = useState<string[]>(["", ""])
   const [loading, setLoading] = useState(false)
@@ -56,7 +58,7 @@ export default function HomePage() {
       // 1. Create session
       const { data: session, error: sessionError } = await supabase
         .from("sessions")
-        .insert({ host_name: hostName.trim() })
+        .insert({ host_name: hostName.trim(), coins_per_participant: coinsPerParticipant })
         .select()
         .single()
 
@@ -112,6 +114,31 @@ export default function HomePage() {
                 onChange={(e) => setHostName(e.target.value)}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Coins */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Coins per Participant</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label>Each participant gets</Label>
+              <span className="text-2xl font-bold tabular-nums w-12 text-right">
+                {coinsPerParticipant}
+              </span>
+            </div>
+            <Slider
+              min={1}
+              max={50}
+              step={1}
+              value={[coinsPerParticipant]}
+              onValueChange={([v]) => setCoinsPerParticipant(v)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Drag to set how many coins each participant distributes across tasks (1–50).
+            </p>
           </CardContent>
         </Card>
 

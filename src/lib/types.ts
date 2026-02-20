@@ -3,6 +3,7 @@ export interface Session {
   host_name: string;
   created_at: string;
   all_voted: boolean;
+  coins_per_participant: number;
 }
 
 export interface Participant {
