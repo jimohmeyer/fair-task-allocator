@@ -17,6 +17,8 @@ export default function HomePage() {
   const [tasks, setTasks] = useState<string[]>(["", ""])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   function addParticipant() {
     setParticipants([...participants, ""])
@@ -76,12 +78,65 @@ export default function HomePage() {
       )
       if (tasksError) throw tasksError
 
-      router.push(`/session/${session.id}`)
+      localStorage.setItem(`host:${session.id}`, "true")
+      setCreatedSessionId(session.id)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
+      if (err instanceof Error) {
+        setError(err.message)
+      } else if (err && typeof err === "object" && "message" in err) {
+        setError(String((err as { message: unknown }).message))
+      } else {
+        setError("Something went wrong")
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  function handleCopyLink() {
+    if (!createdSessionId) return
+    const url = `${window.location.origin}/session/${createdSessionId}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  if (createdSessionId) {
+    const sessionUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/session/${createdSessionId}`
+    return (
+      <main className="min-h-screen bg-background p-6 md:p-12 flex items-center justify-center">
+        <div className="max-w-lg w-full space-y-6">
+          <div className="text-center space-y-2">
+            <div className="text-4xl">🎉</div>
+            <h1 className="text-3xl font-bold tracking-tight">Session Created!</h1>
+            <p className="text-muted-foreground">
+              Share the link below with your participants so they can vote.
+            </p>
+          </div>
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <Label>Shareable link</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={sessionUrl} className="font-mono text-sm" />
+                  <Button variant="outline" onClick={handleCopyLink} className="shrink-0">
+                    {copied ? "Copied!" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => router.push(`/session/${createdSessionId}`)}
+              >
+                Go to Session →
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    )
   }
 
   const isValid =

@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { getSupabase } from "@/lib/supabase"
 import { calculateDistribution } from "@/lib/algorithm"
 import type { Participant, Task, Vote, Assignment } from "@/lib/types"
@@ -135,6 +137,12 @@ export default function ResultsPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        <div className="flex justify-center pt-4">
+          <Button asChild variant="outline">
+            <Link href="/">Start a new session</Link>
+          </Button>
         </div>
       </div>
     </main>

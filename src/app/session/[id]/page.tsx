@@ -1,13 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { getSupabase } from "@/lib/supabase"
 import type { Participant, Task } from "@/lib/types"
+
+const POLL_INTERVAL_MS = 3000
 
 const FEWER_TASKS_ID = "__fewer_tasks__"
 
@@ -18,6 +22,122 @@ function buildInitialCoins(tasks: Task[]): CoinMap {
   tasks.forEach((t) => (map[t.id] = 0))
   map[FEWER_TASKS_ID] = 0
   return map
+}
+
+// ── Host Lobby ─────────────────────────────────────────────────────────────
+function HostLobby({
+  sessionId,
+  initialParticipants,
+  onCastVote,
+}: {
+  sessionId: string
+  initialParticipants: Participant[]
+  onCastVote: () => void
+}) {
+  const router = useRouter()
+  const [participants, setParticipants] = useState<Participant[]>(initialParticipants)
+  const [allVoted, setAllVoted] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const sessionUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/session/${sessionId}`
+
+  function handleCopy() {
+    navigator.clipboard.writeText(sessionUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  useEffect(() => {
+    async function poll() {
+      const supabase = getSupabase()
+      const [{ data: pData }, { data: sData }] = await Promise.all([
+        supabase.from("participants").select("*").eq("session_id", sessionId).order("name"),
+        supabase.from("sessions").select("all_voted").eq("id", sessionId).single(),
+      ])
+      if (pData) setParticipants(pData)
+      if (sData?.all_voted) {
+        setAllVoted(true)
+        if (pollingRef.current) clearInterval(pollingRef.current)
+      }
+    }
+
+    poll()
+    pollingRef.current = setInterval(poll, POLL_INTERVAL_MS)
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+    }
+  }, [sessionId])
+
+  const votedCount = participants.filter((p) => p.has_voted).length
+
+  return (
+    <main className="min-h-screen bg-background p-6 md:p-12">
+      <div className="max-w-xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Host Lobby</h1>
+          <p className="text-muted-foreground mt-1">
+            Share the link below and monitor voting progress.
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <Label>Shareable link</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={sessionUrl} className="font-mono text-sm" />
+              <Button variant="outline" onClick={handleCopy} className="shrink-0">
+                {copied ? "Copied!" : "Copy"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-base">
+              Participants
+              <Badge variant="secondary">
+                {votedCount} / {participants.length} voted
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {participants.map((p) => (
+              <div key={p.id} className="flex items-center justify-between py-1">
+                <span className="text-sm font-medium">{p.name}</span>
+                {p.has_voted ? (
+                  <Badge variant="default" className="text-xs">
+                    Voted
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs">
+                    Waiting
+                  </Badge>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-3">
+          <Button onClick={onCastVote} variant="outline" className="w-full" size="lg">
+            Cast Your Vote →
+          </Button>
+          {allVoted && (
+            <Button
+              onClick={() => router.push(`/session/${sessionId}/results`)}
+              className="w-full"
+              size="lg"
+            >
+              View Results →
+            </Button>
+          )}
+        </div>
+      </div>
+    </main>
+  )
 }
 
 // ── Participant Selector ───────────────────────────────────────────────────
@@ -254,11 +374,17 @@ export default function SessionPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [isHost, setIsHost] = useState(false)
+  const [hostCastingVote, setHostCastingVote] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
         const supabase = getSupabase()
+
+        // Detect host
+        const isHostDevice = localStorage.getItem(`host:${sessionId}`) === "true"
+        if (isHostDevice) setIsHost(true)
 
         // Restore previously selected participant from localStorage
         const savedId = localStorage.getItem(`participant:${sessionId}`)
@@ -319,8 +445,17 @@ export default function SessionPage() {
 
   function handleSubmitted() {
     setSubmitted(true)
-    // After a short delay, redirect to results page
-    setTimeout(() => router.push(`/session/${sessionId}/results`), 1500)
+    if (isHost) {
+      // Host returns to lobby after a brief confirmation
+      setTimeout(() => {
+        setSubmitted(false)
+        setHostCastingVote(false)
+        setSelectedParticipant(null)
+      }, 1500)
+    } else {
+      // Participants redirect to results page
+      setTimeout(() => router.push(`/session/${sessionId}/results`), 1500)
+    }
   }
 
   if (loading) {
@@ -345,12 +480,26 @@ export default function SessionPage() {
         <div className="text-center space-y-3">
           <div className="text-4xl">✓</div>
           <h2 className="text-2xl font-bold">Vote submitted!</h2>
-          <p className="text-muted-foreground">Redirecting to results…</p>
+          <p className="text-muted-foreground">
+            {isHost ? "Returning to lobby…" : "Redirecting to results…"}
+          </p>
         </div>
       </main>
     )
   }
 
+  // Host lobby: shown when host hasn't clicked "Cast Your Vote" yet
+  if (isHost && !hostCastingVote) {
+    return (
+      <HostLobby
+        sessionId={sessionId}
+        initialParticipants={participants}
+        onCastVote={() => setHostCastingVote(true)}
+      />
+    )
+  }
+
+  // Participant selector (also used by host after clicking "Cast Your Vote")
   if (!selectedParticipant) {
     return (
       <ParticipantSelector
