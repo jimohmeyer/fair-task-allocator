@@ -98,13 +98,15 @@ function VotingInterface({
     try {
       const supabase = getSupabase()
 
-      // Build vote rows — one per task (including fewer-tasks option)
-      const voteRows = Object.entries(coins).map(([key, coinCount]) => ({
-        session_id: sessionId,
-        participant_id: participant.id,
-        task_id: key === FEWER_TASKS_ID ? null : key,
-        coins: coinCount,
-      }))
+      // Build vote rows — only for tasks where coins were actually placed
+      const voteRows = Object.entries(coins)
+        .filter(([, coinCount]) => coinCount > 0)
+        .map(([key, coinCount]) => ({
+          session_id: sessionId,
+          participant_id: participant.id,
+          task_id: key === FEWER_TASKS_ID ? null : key,
+          coins: coinCount,
+        }))
 
       const { error: voteError } = await supabase.from("votes").insert(voteRows)
       if (voteError) throw voteError

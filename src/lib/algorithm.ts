@@ -87,13 +87,12 @@ export function calculateDistribution(
 
   // Force-assign leftover tasks
   const unassigned = tasks.filter((t) => !assignedTask.has(t.id))
-  // Find participants still with capacity, prioritize those with most remaining
-  const participantsWithCap = participants.filter((p) => (remainingCap[p.id] ?? 0) > 0)
 
   for (const task of unassigned) {
-    // Find a participant with remaining capacity
-    const pick = participantsWithCap.find((p) => (remainingCap[p.id] ?? 0) > 0)
-    if (!pick) break // should not happen if capacities are correct
+    const pick = participants
+      .filter((p) => (remainingCap[p.id] ?? 0) > 0)
+      .sort((a, b) => (remainingCap[b.id] ?? 0) - (remainingCap[a.id] ?? 0))[0]
+    if (!pick) break
     assignedTask.add(task.id)
     assignments[pick.id].push(task.id)
     remainingCap[pick.id]--
