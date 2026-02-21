@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
+import { Navbar } from "@/components/Navbar"
 import { getSupabase } from "@/lib/supabase"
 
 export default function CreatePage() {
@@ -106,51 +107,55 @@ export default function CreatePage() {
   if (createdSessionId) {
     const sessionUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/session/${createdSessionId}`
     return (
-      <main className="min-h-screen bg-background p-6 md:p-12 flex items-center justify-center">
-        <div className="max-w-lg w-full space-y-8">
-          {/* Glow */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden -z-10">
-            <div
-              className="w-[400px] h-[300px] rounded-full blur-[100px]"
-              style={{ background: "oklch(0.78 0.17 75 / 0.1)" }}
-            />
-          </div>
+      <div className="min-h-screen bg-background">
+        <Navbar />
 
-          <div className="text-center space-y-3">
-            <div
-              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl text-2xl mb-2"
-              style={{ background: "oklch(0.78 0.17 75 / 0.15)" }}
-            >
-              ✓
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight">Session Created!</h1>
-            <p className="text-muted-foreground">
-              Share the link below with your participants so they can vote.
-            </p>
-          </div>
-
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Shareable link</Label>
-                <div className="flex gap-2">
-                  <Input readOnly value={sessionUrl} className="font-mono text-sm" />
-                  <Button variant="outline" onClick={handleCopyLink} className="shrink-0">
-                    {copied ? "Copied!" : "Copy"}
-                  </Button>
-                </div>
-              </div>
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() => router.push(`/session/${createdSessionId}`)}
-              >
-                Go to Session →
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Ambient glow */}
+        <div className="pointer-events-none fixed inset-0 flex items-center justify-center overflow-hidden -z-10">
+          <div
+            className="w-[600px] h-[400px] rounded-full blur-[120px]"
+            style={{ background: "oklch(0.78 0.17 75 / 0.10)" }}
+          />
         </div>
-      </main>
+
+        <main className="pt-24 pb-12 px-6 flex items-center justify-center min-h-screen">
+          <div className="max-w-lg w-full space-y-8">
+            <div className="text-center space-y-3">
+              <div
+                className="inline-flex items-center justify-center w-14 h-14 rounded-2xl text-2xl mb-2"
+                style={{ background: "oklch(0.78 0.17 75 / 0.15)" }}
+              >
+                ✓
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">Session Created!</h1>
+              <p className="text-muted-foreground">
+                Share the link below with your participants so they can vote.
+              </p>
+            </div>
+
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <div className="space-y-2">
+                  <Label>Shareable link</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={sessionUrl} className="font-mono text-sm" />
+                    <Button variant="outline" onClick={handleCopyLink} className="shrink-0">
+                      {copied ? "Copied!" : "Copy"}
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => router.push(`/session/${createdSessionId}`)}
+                >
+                  Go to Session →
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
     )
   }
 
@@ -160,133 +165,167 @@ export default function CreatePage() {
     tasks.filter((t) => t.trim()).length >= 1
 
   return (
-    <main className="min-h-screen bg-background p-6 md:p-12">
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Back + Title */}
-        <div className="space-y-1">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            ← Back
-          </Link>
-          <h1 className="text-3xl font-bold tracking-tight">Create a session</h1>
-          <p className="text-muted-foreground">
-            Set up a session and share the link so your team can vote.
-          </p>
-        </div>
+    <div className="min-h-screen bg-background">
+      <Navbar />
 
-        {/* Host Name */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Your name</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="host-name">Host name</Label>
-              <Input
-                id="host-name"
-                placeholder="e.g. Alice"
-                value={hostName}
-                onChange={(e) => setHostName(e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Coins */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Coins per participant</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Each participant gets</Label>
-              <span className="text-2xl font-bold tabular-nums text-primary w-12 text-right">
-                {coinsPerParticipant}
-              </span>
-            </div>
-            <Slider
-              min={1}
-              max={50}
-              step={1}
-              value={[coinsPerParticipant]}
-              onValueChange={([v]) => setCoinsPerParticipant(v)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Drag to set how many coins each participant distributes across tasks (1–50).
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Participants */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Participants</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {participants.map((name, i) => (
-              <div key={i} className="flex gap-2">
-                <Input
-                  placeholder={`Participant ${i + 1}`}
-                  value={name}
-                  onChange={(e) => updateParticipant(i, e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeParticipant(i)}
-                  disabled={participants.length <= 2}
-                >
-                  ✕
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addParticipant} className="w-full">
-              + Add participant
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Tasks */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tasks</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.map((title, i) => (
-              <div key={i} className="flex gap-2">
-                <Input
-                  placeholder={`Task ${i + 1}`}
-                  value={title}
-                  onChange={(e) => updateTask(i, e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeTask(i)}
-                  disabled={tasks.length <= 1}
-                >
-                  ✕
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addTask} className="w-full">
-              + Add task
-            </Button>
-          </CardContent>
-        </Card>
-
-        {error && (
-          <p className="text-sm text-destructive bg-destructive/10 px-4 py-2 rounded-lg">
-            {error}
-          </p>
-        )}
-
-        <Button onClick={handleCreate} disabled={!isValid || loading} className="w-full" size="lg">
-          {loading ? "Creating…" : "Create Session"}
-        </Button>
+      {/* Ambient glow */}
+      <div className="pointer-events-none fixed inset-0 flex items-start justify-center overflow-hidden -z-10">
+        <div
+          className="w-[600px] h-[400px] rounded-full blur-[120px] mt-24"
+          style={{ background: "oklch(0.78 0.17 75 / 0.10)" }}
+        />
       </div>
-    </main>
+
+      <main className="pt-24 pb-16 px-6 md:px-12">
+        <div className="max-w-5xl mx-auto">
+          {/* Page header */}
+          <div className="mb-10 space-y-2">
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border mb-3"
+              style={{
+                borderColor: "oklch(0.78 0.17 75 / 0.4)",
+                color: "oklch(0.78 0.17 75)",
+                background: "oklch(0.78 0.17 75 / 0.08)",
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: "oklch(0.78 0.17 75)" }}
+              />
+              Step 1 of 1 · Set up your session
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight">Create a session</h1>
+            <p className="text-muted-foreground">
+              Set up a session and share the link so your team can vote.
+            </p>
+          </div>
+
+          {/* Two-column layout on desktop */}
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* Left column — sticky config */}
+            <div className="w-full lg:w-72 lg:shrink-0 space-y-6 lg:sticky lg:top-24">
+              {/* Host Name */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your name</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Label htmlFor="host-name">Host name</Label>
+                    <Input
+                      id="host-name"
+                      placeholder="e.g. Alice"
+                      value={hostName}
+                      onChange={(e) => setHostName(e.target.value)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Coins */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Coins per participant</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Each participant gets</Label>
+                    <span className="text-2xl font-bold tabular-nums text-primary w-12 text-right">
+                      {coinsPerParticipant}
+                    </span>
+                  </div>
+                  <Slider
+                    min={1}
+                    max={50}
+                    step={1}
+                    value={[coinsPerParticipant]}
+                    onValueChange={([v]) => setCoinsPerParticipant(v)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Drag to set how many coins each participant distributes across tasks (1–50).
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right column — participants + tasks + submit */}
+            <div className="flex-1 min-w-0 space-y-6">
+              {/* Participants */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Participants</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {participants.map((name, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input
+                        placeholder={`Participant ${i + 1}`}
+                        value={name}
+                        onChange={(e) => updateParticipant(i, e.target.value)}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeParticipant(i)}
+                        disabled={participants.length <= 2}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  ))}
+                  <Button variant="outline" onClick={addParticipant} className="w-full">
+                    + Add participant
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Tasks */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tasks</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {tasks.map((title, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input
+                        placeholder={`Task ${i + 1}`}
+                        value={title}
+                        onChange={(e) => updateTask(i, e.target.value)}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeTask(i)}
+                        disabled={tasks.length <= 1}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  ))}
+                  <Button variant="outline" onClick={addTask} className="w-full">
+                    + Add task
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {error && (
+                <p className="text-sm text-destructive bg-destructive/10 px-4 py-2 rounded-lg">
+                  {error}
+                </p>
+              )}
+
+              <Button
+                onClick={handleCreate}
+                disabled={!isValid || loading}
+                className="w-full"
+                size="lg"
+              >
+                {loading ? "Creating…" : "Create Session"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   )
 }

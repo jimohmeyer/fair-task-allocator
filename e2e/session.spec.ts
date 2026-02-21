@@ -139,7 +139,7 @@ test.describe("Fair Task Allocator — end-to-end", () => {
     // Host lobby should update to 1/3 voted within polling interval
     await expect(hostPage.getByText("1 / 3 voted")).toBeVisible({ timeout: 6000 })
     // Bob's row now shows "Voted"
-    const bobRow = hostPage.locator("div.flex.items-center.justify-between.py-1", {
+    const bobRow = hostPage.locator('[data-testid="participant-row"]', {
       has: hostPage.locator("text=Bob"),
     })
     await expect(bobRow.getByText("Voted")).toBeVisible({ timeout: 6000 })

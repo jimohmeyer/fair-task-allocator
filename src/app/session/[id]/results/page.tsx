@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Navbar } from "@/components/Navbar"
 import { getSupabase } from "@/lib/supabase"
 import { calculateDistribution } from "@/lib/algorithm"
 import type { Participant, Task, Vote, Assignment } from "@/lib/types"
@@ -80,138 +81,199 @@ export default function ResultsPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="text-center space-y-3">
-          <p className="text-destructive font-medium">{error}</p>
-          <Button variant="outline" onClick={() => window.location.reload()}>
-            Try again
-          </Button>
-        </div>
-      </main>
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-16 flex items-center justify-center min-h-screen p-6">
+          <div className="text-center space-y-3">
+            <p className="text-destructive font-medium">{error}</p>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Try again
+            </Button>
+          </div>
+        </main>
+      </div>
     )
   }
 
   if (!allVoted) {
     return (
-      <main className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="text-center space-y-6">
-          {/* Pulsing glow orb */}
-          <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-16 flex items-center justify-center min-h-screen p-6">
+          <div className="text-center space-y-6 max-w-md mx-auto">
+            {/* Pulsing glow orb */}
+            <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+              <div
+                className="absolute inset-0 rounded-full animate-ping"
+                style={{ background: "oklch(0.78 0.17 75 / 0.2)" }}
+              />
+              <div
+                className="absolute inset-3 rounded-full animate-pulse"
+                style={{ background: "oklch(0.78 0.17 75 / 0.15)" }}
+              />
+              <div
+                className="relative w-12 h-12 rounded-full"
+                style={{ background: "oklch(0.78 0.17 75 / 0.3)" }}
+              />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-bold">Waiting for votes…</h2>
+              {totalCount > 0 && (
+                <p className="text-muted-foreground text-lg">
+                  {votedCount} of {totalCount} participants have voted.
+                </p>
+              )}
+            </div>
             <div
-              className="absolute inset-0 rounded-full animate-ping"
-              style={{ background: "oklch(0.78 0.17 75 / 0.2)" }}
-            />
-            <div
-              className="absolute inset-2 rounded-full animate-pulse"
-              style={{ background: "oklch(0.78 0.17 75 / 0.15)" }}
-            />
-            <div
-              className="relative w-10 h-10 rounded-full"
-              style={{ background: "oklch(0.78 0.17 75 / 0.3)" }}
-            />
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm border"
+              style={{
+                borderColor: "oklch(0.78 0.17 75 / 0.2)",
+                color: "oklch(0.78 0.17 75 / 0.7)",
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{ background: "oklch(0.78 0.17 75)" }}
+              />
+              Checking every 3 seconds
+            </div>
           </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold">Waiting for votes…</h2>
-            {totalCount > 0 && (
-              <p className="text-muted-foreground">
-                {votedCount} of {totalCount} participants have voted.
-              </p>
-            )}
-          </div>
-          <div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm border"
-            style={{
-              borderColor: "oklch(0.78 0.17 75 / 0.2)",
-              color: "oklch(0.78 0.17 75 / 0.7)",
-            }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ background: "oklch(0.78 0.17 75)" }}
-            />
-            Checking every 3 seconds
-          </div>
-        </div>
-      </main>
+        </main>
+      </div>
     )
   }
 
+  const totalTasksAssigned = (results ?? []).reduce((s, a) => s + a.tasks.length, 0)
+
   return (
-    <main className="min-h-screen bg-background p-6 md:p-12">
-      <div className="max-w-3xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="space-y-1">
-          <p className="text-sm text-primary font-medium uppercase tracking-widest">
-            Final results
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight">Task Allocation</h1>
-          <p className="text-muted-foreground">
-            All participants have voted. Here is the final distribution.
-          </p>
-        </div>
+    <div className="min-h-screen bg-background">
+      <Navbar />
 
-        {/* Results grid */}
-        <div className="grid gap-5 sm:grid-cols-2">
-          {(results ?? []).map((assignment, idx) => {
-            // Cycle through a few amber/warm accent shades for the top border
-            const hues = [75, 55, 90, 65]
-            const hue = hues[idx % hues.length]
-            return (
-              <Card
-                key={assignment.participant_id}
-                className="overflow-hidden relative"
-                style={{ borderColor: "oklch(0.22 0 0)" }}
-              >
-                {/* Gradient top accent border */}
-                <div
-                  className="absolute top-0 inset-x-0 h-0.5"
-                  style={{
-                    background: `linear-gradient(90deg, oklch(0.78 0.17 ${hue} / 0.8), oklch(0.78 0.17 ${hue} / 0.2))`,
-                  }}
-                />
-                <CardHeader className="pb-3 pt-5">
-                  <CardTitle className="flex items-center justify-between text-base">
-                    {assignment.participant_name}
-                    <Badge
-                      variant="secondary"
-                      style={{
-                        background: "oklch(0.78 0.17 75 / 0.1)",
-                        color: "oklch(0.78 0.17 75)",
-                      }}
-                    >
-                      {assignment.tasks.length} task{assignment.tasks.length !== 1 ? "s" : ""}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ol className="space-y-2">
-                    {assignment.tasks.map((task, taskIdx) => (
-                      <li key={task.id} className="text-sm flex gap-3 items-start">
-                        <span
-                          className="shrink-0 w-5 h-5 rounded-full text-xs flex items-center justify-center font-semibold mt-px"
-                          style={{
-                            background: "oklch(0.78 0.17 75 / 0.12)",
-                            color: "oklch(0.78 0.17 75 / 0.8)",
-                          }}
-                        >
-                          {taskIdx + 1}
-                        </span>
-                        <span className="text-foreground/80">{task.title}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-
-        <div className="flex justify-center pt-4">
-          <Button asChild>
-            <Link href="/create">Start a new session →</Link>
-          </Button>
-        </div>
+      {/* Ambient glow */}
+      <div className="pointer-events-none fixed inset-0 flex items-start justify-center overflow-hidden -z-10">
+        <div
+          className="w-[600px] h-[400px] rounded-full blur-[120px] mt-24"
+          style={{ background: "oklch(0.78 0.17 75 / 0.10)" }}
+        />
       </div>
-    </main>
+
+      <main className="pt-24 pb-16 px-6 md:px-12">
+        <div className="max-w-5xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="space-y-1">
+            <p className="text-sm text-primary font-medium uppercase tracking-widest">
+              Final results
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight">Task Allocation</h1>
+            <p className="text-muted-foreground">
+              All participants have voted. Here is the final distribution.
+            </p>
+          </div>
+
+          {/* Summary stats row */}
+          {results && results.length > 0 && (
+            <div className="grid grid-cols-3 gap-4">
+              <div
+                className="rounded-2xl border p-5 text-center"
+                style={{ borderColor: "oklch(0.22 0 0)", background: "oklch(0.13 0 0)" }}
+              >
+                <p className="text-3xl font-bold tabular-nums">{totalTasksAssigned}</p>
+                <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wide">
+                  Tasks assigned
+                </p>
+              </div>
+              <div
+                className="rounded-2xl border p-5 text-center"
+                style={{ borderColor: "oklch(0.22 0 0)", background: "oklch(0.13 0 0)" }}
+              >
+                <p className="text-3xl font-bold tabular-nums">{results.length}</p>
+                <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wide">
+                  Participants
+                </p>
+              </div>
+              <div
+                className="rounded-2xl border p-5 text-center"
+                style={{ borderColor: "oklch(0.22 0 0)", background: "oklch(0.13 0 0)" }}
+              >
+                <p
+                  className="text-3xl font-bold"
+                  style={{ color: "oklch(0.78 0.17 75)" }}
+                >
+                  ✓
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wide">
+                  Preferences optimized
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Results grid */}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {(results ?? []).map((assignment, idx) => {
+              const hues = [75, 55, 90, 65]
+              const hue = hues[idx % hues.length]
+              return (
+                <Card
+                  key={assignment.participant_id}
+                  className="overflow-hidden relative"
+                  style={{ borderColor: "oklch(0.22 0 0)" }}
+                >
+                  {/* Gradient top accent border */}
+                  <div
+                    className="absolute top-0 inset-x-0 h-0.5"
+                    style={{
+                      background: `linear-gradient(90deg, oklch(0.78 0.17 ${hue} / 0.8), oklch(0.78 0.17 ${hue} / 0.2))`,
+                    }}
+                  />
+                  <CardHeader className="pb-3 pt-6">
+                    <CardTitle className="flex items-center justify-between text-base">
+                      {assignment.participant_name}
+                      <Badge
+                        variant="secondary"
+                        style={{
+                          background: "oklch(0.78 0.17 75 / 0.1)",
+                          color: "oklch(0.78 0.17 75)",
+                        }}
+                      >
+                        {assignment.tasks.length} task{assignment.tasks.length !== 1 ? "s" : ""}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-6">
+                    <ol className="space-y-2.5">
+                      {assignment.tasks.map((task, taskIdx) => (
+                        <li key={task.id} className="text-sm flex gap-3 items-start">
+                          <span
+                            className="shrink-0 w-5 h-5 rounded-full text-xs flex items-center justify-center font-semibold mt-px"
+                            style={{
+                              background: "oklch(0.78 0.17 75 / 0.12)",
+                              color: "oklch(0.78 0.17 75 / 0.8)",
+                            }}
+                          >
+                            {taskIdx + 1}
+                          </span>
+                          <span className="text-foreground/80">{task.title}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* New session CTA */}
+          <div className="flex justify-center pt-6 pb-4">
+            <div className="text-center space-y-4">
+              <p className="text-sm text-muted-foreground">Ready for another round?</p>
+              <Button asChild size="lg" className="px-8">
+                <Link href="/create">Start a new session →</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   )
 }
