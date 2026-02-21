@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fair Task Allocator
+
+A preference-based, coin-weighted task distribution app that fairly divides recurring work among a group.
+
+## Description
+
+Fair Task Allocator lets a group distribute recurring tasks (e.g., university assignments, household chores) using a gamified voting system. Each participant gets exactly 10 coins to express their preferences across available tasks. Once everyone votes, a Min-Cost Max-Flow algorithm computes the assignment that maximizes total group satisfaction while respecting each person's workload preferences.
+
+## Features
+
+- 10-coin preference voting system — distribute coins to signal what you want
+- "Fewer Tasks" capacity preference option for workload balancing
+- Optimal task assignment via Min-Cost Max-Flow algorithm
+- Real-time lobby with polling — see who has voted
+- Shareable session links — participants join via URL
+- Dark amber UI built with shadcn/ui and Tailwind CSS
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS v4 |
+| UI Components | shadcn/ui + Radix UI |
+| Database | Supabase (PostgreSQL) |
+| Testing | Jest (unit) + Playwright (e2e) |
+
+## How It Works
+
+1. **Host creates a session** — enters participant names and task titles, then shares the generated session link.
+2. **Participants vote** — each person opens the link, picks their name, and distributes exactly 10 coins across the task list (including the "Fewer Tasks" option if they prefer a lighter load).
+3. **Algorithm computes results** — once everyone has voted, the optimal assignment is displayed showing who got which tasks.
+
+### The Algorithm
+
+Task assignment runs in two steps inside `src/lib/algorithm.ts`:
+
+1. **Capacity determination** — coins placed on "Fewer Tasks" control how many tasks each person receives. Participants who weighted this option more heavily are assigned a lower task cap (`base` tasks instead of `base + 1`), where `base = floor(total_tasks / total_participants)`.
+
+2. **Min-Cost Max-Flow** — a bipartite graph is constructed with tasks on one side and participants on the other. Edge costs are the negated coin weights (so minimizing cost = maximizing satisfaction). MCMF finds the flow that assigns every task to exactly one participant while respecting per-person capacity and maximizing total coin satisfaction across the group.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js ≥ 18
+- A [Supabase](https://supabase.com) project
+
+### Installation
+
+```bash
+git clone <repo-url>
+cd fair-task-allocator
+npm install
+```
+
+### Environment Variables
+
+Copy `.env.local.example` to `.env.local` and fill in your Supabase credentials:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+```
+
+### Supabase Schema
+
+Run the following SQL in your Supabase SQL editor to create the required tables:
+
+```sql
+create table sessions (
+  id           uuid primary key default gen_random_uuid(),
+  host_name    text not null,
+  created_at   timestamptz not null default now(),
+  all_voted    boolean not null default false,
+  coins_per_participant integer not null default 10
+);
+
+create table participants (
+  id         uuid primary key default gen_random_uuid(),
+  session_id uuid not null references sessions(id) on delete cascade,
+  name       text not null,
+  has_voted  boolean not null default false
+);
+
+create table tasks (
+  id         uuid primary key default gen_random_uuid(),
+  session_id uuid not null references sessions(id) on delete cascade,
+  title      text not null,
+  position   integer not null default 0
+);
+
+create table votes (
+  id             uuid primary key default gen_random_uuid(),
+  session_id     uuid not null references sessions(id) on delete cascade,
+  participant_id uuid not null references participants(id) on delete cascade,
+  task_id        uuid references tasks(id) on delete cascade, -- null = "Fewer Tasks"
+  coins          integer not null
+);
+```
+
+### Run Locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testing
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test              # Unit tests (Jest) — 11 tests covering the allocation algorithm
+npx playwright test   # E2E tests (Playwright) — 8 tests for the full session flow
+```
 
-## Learn More
+**Unit tests** (`src/lib/algorithm.test.ts`) verify the MCMF allocation logic in isolation using fixture data: correct task counts, preference satisfaction, tie-breaking, and edge cases (single participant, zero tasks, etc.).
 
-To learn more about Next.js, take a look at the following resources:
+**End-to-end tests** (`e2e/session.spec.ts`) drive a real browser through the complete flow: creating a session, participants joining and submitting votes, and verifying the results page shows the correct assignments.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+  app/
+    page.tsx                        # Landing page
+    create/page.tsx                 # Host session creation
+    session/[id]/page.tsx           # Participant voting lobby
+    session/[id]/results/page.tsx   # Results / assignment display
+  lib/
+    algorithm.ts                    # Min-Cost Max-Flow allocation logic
+    algorithm.test.ts               # Jest unit tests
+    types.ts                        # TypeScript interfaces (Session, Participant, Task, Vote)
+    supabase.ts                     # Supabase client singleton
+e2e/
+  session.spec.ts                   # Playwright end-to-end tests
+```
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT — see [LICENSE](LICENSE) for details.
