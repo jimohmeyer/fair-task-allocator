@@ -1,270 +1,202 @@
-"use client"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import { getSupabase } from "@/lib/supabase"
 
-export default function HomePage() {
-  const router = useRouter()
-  const [hostName, setHostName] = useState("")
-  const [coinsPerParticipant, setCoinsPerParticipant] = useState(10)
-  const [participants, setParticipants] = useState<string[]>(["", ""])
-  const [tasks, setTasks] = useState<string[]>(["", ""])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+const steps = [
+  {
+    number: "01",
+    title: "Create a session",
+    description:
+      "The host adds participant names and all the tasks that need to be distributed.",
+  },
+  {
+    number: "02",
+    title: "Everyone votes",
+    description:
+      "Each participant distributes their coins across tasks to signal preferences — more coins means higher interest.",
+  },
+  {
+    number: "03",
+    title: "Fair distribution",
+    description:
+      "The algorithm maximises collective satisfaction and assigns every task to exactly one person.",
+  },
+]
 
-  function addParticipant() {
-    setParticipants([...participants, ""])
-  }
+const features = [
+  {
+    title: "Fair by design",
+    description:
+      "The assignment algorithm maximises total satisfaction across the whole group — nobody gets stuck with tasks they dislike.",
+  },
+  {
+    title: "Coin-weighted preferences",
+    description:
+      "10 coins per person means limited votes that carry real weight. Spreading thin signals mild interest; stacking coins signals strong preference.",
+  },
+  {
+    title: "Fewer tasks option",
+    description:
+      "Participants can signal they prefer a lighter workload. The algorithm accounts for capacity preferences alongside task preferences.",
+  },
+  {
+    title: "Real-time voting",
+    description:
+      "Everyone votes independently via a shareable link. The host monitors progress live and results appear the moment the last vote lands.",
+  },
+]
 
-  function removeParticipant(index: number) {
-    setParticipants(participants.filter((_, i) => i !== index))
-  }
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Nav */}
+      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 md:px-12 h-16 border-b border-border/50 backdrop-blur-md bg-background/70">
+        <span className="font-semibold tracking-tight text-foreground">
+          Task<span className="text-primary">Allocator</span>
+        </span>
+        <Button asChild size="sm">
+          <Link href="/create">Start a Session</Link>
+        </Button>
+      </header>
 
-  function updateParticipant(index: number, value: string) {
-    const updated = [...participants]
-    updated[index] = value
-    setParticipants(updated)
-  }
+      {/* Hero */}
+      <section className="relative flex flex-col items-center justify-center min-h-screen text-center px-6 pt-16">
+        {/* Ambient glow */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+          <div
+            className="w-[700px] h-[500px] rounded-full blur-[140px]"
+            style={{ background: "oklch(0.78 0.17 75 / 0.12)" }}
+          />
+        </div>
 
-  function addTask() {
-    setTasks([...tasks, ""])
-  }
-
-  function removeTask(index: number) {
-    setTasks(tasks.filter((_, i) => i !== index))
-  }
-
-  function updateTask(index: number, value: string) {
-    const updated = [...tasks]
-    updated[index] = value
-    setTasks(updated)
-  }
-
-  async function handleCreate() {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const supabase = getSupabase()
-      const trimmedParticipants = participants.filter((p) => p.trim())
-      const trimmedTasks = tasks.filter((t) => t.trim())
-
-      // 1. Create session
-      const { data: session, error: sessionError } = await supabase
-        .from("sessions")
-        .insert({ host_name: hostName.trim(), coins_per_participant: coinsPerParticipant })
-        .select()
-        .single()
-
-      if (sessionError) throw sessionError
-
-      // 2. Insert participants
-      const { error: participantsError } = await supabase.from("participants").insert(
-        trimmedParticipants.map((name) => ({ session_id: session.id, name }))
-      )
-      if (participantsError) throw participantsError
-
-      // 3. Insert tasks
-      const { error: tasksError } = await supabase.from("tasks").insert(
-        trimmedTasks.map((title, position) => ({ session_id: session.id, title, position }))
-      )
-      if (tasksError) throw tasksError
-
-      localStorage.setItem(`host:${session.id}`, "true")
-      setCreatedSessionId(session.id)
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message)
-      } else if (err && typeof err === "object" && "message" in err) {
-        setError(String((err as { message: unknown }).message))
-      } else {
-        setError("Something went wrong")
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function handleCopyLink() {
-    if (!createdSessionId) return
-    const url = `${window.location.origin}/session/${createdSessionId}`
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  if (createdSessionId) {
-    const sessionUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/session/${createdSessionId}`
-    return (
-      <main className="min-h-screen bg-background p-6 md:p-12 flex items-center justify-center">
-        <div className="max-w-lg w-full space-y-6">
-          <div className="text-center space-y-2">
-            <div className="text-4xl">🎉</div>
-            <h1 className="text-3xl font-bold tracking-tight">Session Created!</h1>
-            <p className="text-muted-foreground">
-              Share the link below with your participants so they can vote.
-            </p>
+        <div className="relative max-w-4xl mx-auto space-y-8">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium"
+            style={{
+              borderColor: "oklch(0.78 0.17 75 / 0.4)",
+              color: "oklch(0.78 0.17 75)",
+              background: "oklch(0.78 0.17 75 / 0.08)",
+            }}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: "oklch(0.78 0.17 75)" }}
+            />
+            Preference-based task allocation
           </div>
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Shareable link</Label>
-                <div className="flex gap-2">
-                  <Input readOnly value={sessionUrl} className="font-mono text-sm" />
-                  <Button variant="outline" onClick={handleCopyLink} className="shrink-0">
-                    {copied ? "Copied!" : "Copy"}
-                  </Button>
+
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.05]">
+            Fairly distribute tasks,
+            <br />
+            <span className="text-primary">the smart way.</span>
+          </h1>
+
+          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            Give everyone 10 coins to vote on task preferences. Our algorithm finds the
+            fairest assignment so nobody gets stuck with work they hate.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+            <Button asChild size="lg" className="text-base px-8 h-12">
+              <Link href="/create">Start a Session →</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="text-base px-8 h-12">
+              <a href="#how-it-works">See how it works</a>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how-it-works" className="py-28 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16 space-y-3">
+            <p className="text-sm font-medium text-primary uppercase tracking-widest">
+              Process
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold">How it works</h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {steps.map((step) => (
+              <div key={step.number} className="relative group">
+                <div
+                  className="rounded-2xl border p-8 h-full transition-colors"
+                  style={{ borderColor: "oklch(0.22 0 0)", background: "oklch(0.13 0 0)" }}
+                >
+                  <p
+                    className="text-4xl font-black mb-4 tabular-nums"
+                    style={{ color: "oklch(0.78 0.17 75 / 0.25)" }}
+                  >
+                    {step.number}
+                  </p>
+                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {step.description}
+                  </p>
                 </div>
               </div>
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() => router.push(`/session/${createdSessionId}`)}
-              >
-                Go to Session →
-              </Button>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
         </div>
-      </main>
-    )
-  }
+      </section>
 
-  const isValid =
-    hostName.trim() &&
-    participants.filter((p) => p.trim()).length >= 2 &&
-    tasks.filter((t) => t.trim()).length >= 1
-
-  return (
-    <main className="min-h-screen bg-background p-6 md:p-12">
-      <div className="max-w-2xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Fair Task Allocator</h1>
-          <p className="text-muted-foreground mt-1">
-            Create a session and let your team vote on task preferences.
-          </p>
-        </div>
-
-        {/* Host Name */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Name</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="host-name">Host name</Label>
-              <Input
-                id="host-name"
-                placeholder="e.g. Alice"
-                value={hostName}
-                onChange={(e) => setHostName(e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Coins */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Coins per Participant</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Each participant gets</Label>
-              <span className="text-2xl font-bold tabular-nums w-12 text-right">
-                {coinsPerParticipant}
-              </span>
-            </div>
-            <Slider
-              min={1}
-              max={50}
-              step={1}
-              value={[coinsPerParticipant]}
-              onValueChange={([v]) => setCoinsPerParticipant(v)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Drag to set how many coins each participant distributes across tasks (1–50).
+      {/* Features grid */}
+      <section className="py-28 px-6" style={{ background: "oklch(0.11 0 0)" }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16 space-y-3">
+            <p className="text-sm font-medium text-primary uppercase tracking-widest">
+              Features
             </p>
-          </CardContent>
-        </Card>
+            <h2 className="text-3xl md:text-4xl font-bold">Built for fairness</h2>
+          </div>
 
-        {/* Participants */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Participants</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {participants.map((name, i) => (
-              <div key={i} className="flex gap-2">
-                <Input
-                  placeholder={`Participant ${i + 1}`}
-                  value={name}
-                  onChange={(e) => updateParticipant(i, e.target.value)}
+          <div className="grid sm:grid-cols-2 gap-6">
+            {features.map((feature) => (
+              <div
+                key={feature.title}
+                className="rounded-2xl border p-8 transition-colors hover:border-primary/30"
+                style={{ borderColor: "oklch(0.22 0 0)", background: "oklch(0.13 0 0)" }}
+              >
+                <div
+                  className="w-8 h-8 rounded-lg mb-5"
+                  style={{ background: "oklch(0.78 0.17 75 / 0.15)" }}
                 />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeParticipant(i)}
-                  disabled={participants.length <= 2}
-                >
-                  ✕
-                </Button>
+                <h3 className="text-base font-semibold mb-2">{feature.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {feature.description}
+                </p>
               </div>
             ))}
-            <Button variant="outline" onClick={addParticipant} className="w-full">
-              + Add participant
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </section>
 
-        {/* Tasks */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tasks</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.map((title, i) => (
-              <div key={i} className="flex gap-2">
-                <Input
-                  placeholder={`Task ${i + 1}`}
-                  value={title}
-                  onChange={(e) => updateTask(i, e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeTask(i)}
-                  disabled={tasks.length <= 1}
-                >
-                  ✕
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addTask} className="w-full">
-              + Add task
-            </Button>
-          </CardContent>
-        </Card>
-
-        {error && (
-          <p className="text-sm text-destructive bg-destructive/10 px-4 py-2 rounded-lg">
-            {error}
+      {/* Footer CTA */}
+      <section className="py-28 px-6 text-center relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div
+            className="w-[500px] h-[300px] rounded-full blur-[100px]"
+            style={{ background: "oklch(0.78 0.17 75 / 0.08)" }}
+          />
+        </div>
+        <div className="relative max-w-xl mx-auto space-y-6">
+          <h2 className="text-3xl md:text-4xl font-bold">Ready to allocate?</h2>
+          <p className="text-muted-foreground">
+            Create a free session in seconds. No account required.
           </p>
-        )}
+          <Button asChild size="lg" className="text-base px-10 h-12">
+            <Link href="/create">Start a Session →</Link>
+          </Button>
+        </div>
+      </section>
 
-        <Button onClick={handleCreate} disabled={!isValid || loading} className="w-full" size="lg">
-          {loading ? "Creating…" : "Create Session"}
-        </Button>
-      </div>
-    </main>
+      {/* Footer */}
+      <footer className="border-t border-border/50 py-8 px-6 text-center">
+        <p className="text-xs text-muted-foreground">
+          Task<span style={{ color: "oklch(0.78 0.17 75)" }}>Allocator</span> — fair
+          distribution through coin-weighted voting
+        </p>
+      </footer>
+    </div>
   )
 }

@@ -76,29 +76,61 @@ function HostLobby({
     <main className="min-h-screen bg-background p-6 md:p-12">
       <div className="max-w-xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Host Lobby</h1>
+          <p className="text-sm text-primary font-medium uppercase tracking-widest mb-1">
+            Host Lobby
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Monitor voting progress</h1>
           <p className="text-muted-foreground mt-1">
-            Share the link below and monitor voting progress.
+            Share the link below and watch as participants submit their votes.
           </p>
         </div>
 
-        <Card>
-          <CardContent className="pt-6 space-y-3">
-            <Label>Shareable link</Label>
-            <div className="flex gap-2">
-              <Input readOnly value={sessionUrl} className="font-mono text-sm" />
-              <Button variant="outline" onClick={handleCopy} className="shrink-0">
-                {copied ? "Copied!" : "Copy"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Glassmorphism share link card */}
+        <div
+          className="rounded-2xl border p-6 space-y-3 backdrop-blur-sm"
+          style={{
+            borderColor: "oklch(0.78 0.17 75 / 0.25)",
+            background: "oklch(0.78 0.17 75 / 0.05)",
+          }}
+        >
+          <Label className="text-xs uppercase tracking-widest text-muted-foreground">
+            Shareable link
+          </Label>
+          <div className="flex gap-2">
+            <Input readOnly value={sessionUrl} className="font-mono text-sm" />
+            <Button
+              variant="outline"
+              onClick={handleCopy}
+              className="shrink-0"
+              style={
+                copied
+                  ? { borderColor: "oklch(0.78 0.17 75 / 0.6)", color: "oklch(0.78 0.17 75)" }
+                  : {}
+              }
+            >
+              {copied ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+        </div>
 
+        {/* Participant status */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
               Participants
-              <Badge variant="secondary">
+              <Badge
+                variant="secondary"
+                className="tabular-nums"
+                style={
+                  votedCount === participants.length && participants.length > 0
+                    ? {
+                        background: "oklch(0.78 0.17 75 / 0.15)",
+                        color: "oklch(0.78 0.17 75)",
+                        borderColor: "oklch(0.78 0.17 75 / 0.3)",
+                      }
+                    : {}
+                }
+              >
                 {votedCount} / {participants.length} voted
               </Badge>
             </CardTitle>
@@ -108,7 +140,14 @@ function HostLobby({
               <div key={p.id} className="flex items-center justify-between py-1">
                 <span className="text-sm font-medium">{p.name}</span>
                 {p.has_voted ? (
-                  <Badge variant="default" className="text-xs">
+                  <Badge
+                    className="text-xs"
+                    style={{
+                      background: "oklch(0.78 0.17 75 / 0.15)",
+                      color: "oklch(0.78 0.17 75)",
+                      borderColor: "oklch(0.78 0.17 75 / 0.3)",
+                    }}
+                  >
                     Voted
                   </Badge>
                 ) : (
@@ -162,15 +201,37 @@ function ParticipantSelector({
               onClick={() => !p.has_voted && onSelect(p)}
               disabled={p.has_voted}
               className={[
-                "w-full text-left px-4 py-4 rounded-xl border transition-colors",
+                "w-full text-left px-5 py-5 rounded-2xl border transition-all duration-150",
                 p.has_voted
-                  ? "opacity-40 cursor-not-allowed bg-muted border-border"
-                  : "hover:bg-accent hover:border-primary cursor-pointer border-border",
+                  ? "opacity-40 cursor-not-allowed border-border bg-muted/30"
+                  : "border-border bg-card hover:border-primary/50 cursor-pointer",
               ].join(" ")}
+              style={
+                !p.has_voted
+                  ? {
+                      boxShadow: "0 0 0 0 transparent",
+                    }
+                  : {}
+              }
+              onMouseEnter={(e) => {
+                if (!p.has_voted) {
+                  e.currentTarget.style.boxShadow = "0 0 20px oklch(0.78 0.17 75 / 0.1)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "0 0 0 0 transparent"
+              }}
             >
-              <span className="font-medium">{p.name}</span>
+              <span className="font-semibold text-base">{p.name}</span>
               {p.has_voted && (
-                <Badge variant="secondary" className="ml-2 text-xs">
+                <Badge
+                  variant="secondary"
+                  className="ml-3 text-xs"
+                  style={{
+                    background: "oklch(0.78 0.17 75 / 0.1)",
+                    color: "oklch(0.78 0.17 75)",
+                  }}
+                >
                   Voted
                 </Badge>
               )}
@@ -202,6 +263,7 @@ function VotingInterface({
 
   const spent = Object.values(coins).reduce((a, b) => a + b, 0)
   const remaining = totalCoins - spent
+  const allPlaced = remaining === 0
 
   function increment(id: string) {
     if (remaining <= 0) return
@@ -219,7 +281,6 @@ function VotingInterface({
     try {
       const supabase = getSupabase()
 
-      // Build vote rows — only for tasks where coins were actually placed
       const voteRows = Object.entries(coins)
         .filter(([, coinCount]) => coinCount > 0)
         .map(([key, coinCount]) => ({
@@ -232,14 +293,12 @@ function VotingInterface({
       const { error: voteError } = await supabase.from("votes").insert(voteRows)
       if (voteError) throw voteError
 
-      // Mark participant as voted
       const { error: updateError } = await supabase
         .from("participants")
         .update({ has_voted: true })
         .eq("id", participant.id)
       if (updateError) throw updateError
 
-      // Check if all participants have now voted
       const { data: unvoted, error: checkError } = await supabase
         .from("participants")
         .select("id")
@@ -264,23 +323,43 @@ function VotingInterface({
 
   function CoinRow({ id, label }: { id: string; label: string }) {
     return (
-      <div className="flex items-center justify-between py-2">
-        <span className="text-sm font-medium flex-1 pr-4">{label}</span>
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between py-3 gap-4">
+        <span className="text-sm font-medium flex-1">{label}</span>
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 transition-colors"
+            style={
+              coins[id] > 0
+                ? {
+                    borderColor: "oklch(0.78 0.17 75 / 0.5)",
+                    color: "oklch(0.78 0.17 75)",
+                  }
+                : {}
+            }
             onClick={() => decrement(id)}
             disabled={coins[id] === 0}
           >
             −
           </Button>
-          <span className="w-6 text-center font-semibold tabular-nums">{coins[id]}</span>
+          <span
+            className="w-6 text-center font-bold tabular-nums text-sm transition-colors"
+            style={coins[id] > 0 ? { color: "oklch(0.78 0.17 75)" } : {}}
+          >
+            {coins[id]}
+          </span>
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 transition-colors"
+            style={
+              remaining > 0
+                ? {
+                    borderColor: "oklch(0.78 0.17 75 / 0.3)",
+                  }
+                : {}
+            }
             onClick={() => increment(id)}
             disabled={remaining === 0}
           >
@@ -301,40 +380,54 @@ function VotingInterface({
           </p>
         </div>
 
-        <Card className={remaining === 0 ? "border-green-500" : ""}>
-          <CardContent className="pt-4 pb-4 flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Coins remaining</span>
-            <Badge
-              variant={remaining === 0 ? "default" : "secondary"}
-              className="text-lg px-3 py-1"
-            >
-              {remaining} / {totalCoins}
-            </Badge>
-          </CardContent>
-        </Card>
+        {/* Coin tracker pill */}
+        <div
+          className="rounded-2xl border p-4 flex items-center justify-between transition-all duration-300"
+          style={
+            allPlaced
+              ? {
+                  borderColor: "oklch(0.78 0.17 75 / 0.5)",
+                  background: "oklch(0.78 0.17 75 / 0.06)",
+                }
+              : { borderColor: "oklch(0.22 0 0)" }
+          }
+        >
+          <span className="text-sm text-muted-foreground">Coins remaining</span>
+          <span
+            className="text-xl font-bold tabular-nums transition-colors"
+            style={allPlaced ? { color: "oklch(0.78 0.17 75)" } : {}}
+          >
+            {remaining}
+            <span className="text-sm font-normal text-muted-foreground"> / {totalCoins}</span>
+          </span>
+        </div>
 
+        {/* Task votes */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Tasks</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-0 divide-y">
+          <CardContent className="divide-y divide-border">
             {tasks.map((task) => (
               <CoinRow key={task.id} id={task.id} label={task.title} />
             ))}
           </CardContent>
         </Card>
 
-        <Card className="border-dashed">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Capacity Preference</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CoinRow
-              id={FEWER_TASKS_ID}
-              label="Fewer Tasks (Capacity Bonus) — signal you prefer a lighter load"
-            />
-          </CardContent>
-        </Card>
+        {/* Fewer tasks option */}
+        <div
+          className="rounded-2xl border border-dashed p-6"
+          style={{ borderColor: "oklch(0.30 0 0)" }}
+        >
+          <p className="text-sm font-semibold mb-1">Capacity Preference</p>
+          <p className="text-xs text-muted-foreground mb-4">
+            Coins here signal you prefer a lighter workload.
+          </p>
+          <CoinRow
+            id={FEWER_TASKS_ID}
+            label="Fewer Tasks (Capacity Bonus)"
+          />
+        </div>
 
         <Separator />
 
@@ -346,13 +439,13 @@ function VotingInterface({
 
         <Button
           onClick={handleSubmit}
-          disabled={remaining !== 0 || submitting}
+          disabled={!allPlaced || submitting}
           className="w-full"
           size="lg"
         >
           {submitting
             ? "Submitting…"
-            : remaining === 0
+            : allPlaced
             ? "Submit Vote"
             : `Place ${remaining} more coin${remaining !== 1 ? "s" : ""} to submit`}
         </Button>
@@ -382,11 +475,9 @@ export default function SessionPage() {
       try {
         const supabase = getSupabase()
 
-        // Detect host
         const isHostDevice = localStorage.getItem(`host:${sessionId}`) === "true"
         if (isHostDevice) setIsHost(true)
 
-        // Restore previously selected participant from localStorage
         const savedId = localStorage.getItem(`participant:${sessionId}`)
 
         const [
@@ -446,14 +537,12 @@ export default function SessionPage() {
   function handleSubmitted() {
     setSubmitted(true)
     if (isHost) {
-      // Host returns to lobby after a brief confirmation
       setTimeout(() => {
         setSubmitted(false)
         setHostCastingVote(false)
         setSelectedParticipant(null)
       }, 1500)
     } else {
-      // Participants redirect to results page
       setTimeout(() => router.push(`/session/${sessionId}/results`), 1500)
     }
   }
@@ -461,24 +550,43 @@ export default function SessionPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading session…</p>
+        <div className="flex flex-col items-center gap-4">
+          <div
+            className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: "oklch(0.78 0.17 75)", borderTopColor: "transparent" }}
+          />
+          <p className="text-muted-foreground text-sm">Loading session…</p>
+        </div>
       </main>
     )
   }
 
   if (error) {
     return (
-      <main className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-destructive">{error}</p>
+      <main className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center space-y-3">
+          <p className="text-destructive font-medium">{error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Try again
+          </Button>
+        </div>
       </main>
     )
   }
 
   if (submitted) {
     return (
-      <main className="min-h-screen bg-background p-6 md:p-12 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="text-4xl">✓</div>
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-full text-2xl mx-auto"
+            style={{
+              background: "oklch(0.78 0.17 75 / 0.15)",
+              color: "oklch(0.78 0.17 75)",
+            }}
+          >
+            ✓
+          </div>
           <h2 className="text-2xl font-bold">Vote submitted!</h2>
           <p className="text-muted-foreground">
             {isHost ? "Returning to lobby…" : "Redirecting to results…"}
@@ -488,7 +596,6 @@ export default function SessionPage() {
     )
   }
 
-  // Host lobby: shown when host hasn't clicked "Cast Your Vote" yet
   if (isHost && !hostCastingVote) {
     return (
       <HostLobby
@@ -499,7 +606,6 @@ export default function SessionPage() {
     )
   }
 
-  // Participant selector (also used by host after clicking "Cast Your Vote")
   if (!selectedParticipant) {
     return (
       <ParticipantSelector

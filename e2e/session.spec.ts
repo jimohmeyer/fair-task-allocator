@@ -3,7 +3,7 @@ import { test, expect, type Page, type BrowserContext } from "@playwright/test"
 // ── helpers ────────────────────────────────────────────────────────────────
 
 async function createSession(page: Page): Promise<string> {
-  await page.goto("/")
+  await page.goto("/create")
 
   // Host name
   await page.getByLabel("Host name").fill("Alice")
@@ -52,7 +52,7 @@ async function castVote(
 
   // Distribute coins using the + buttons next to each task label
   for (const [taskLabel, coins] of Object.entries(coinDistribution)) {
-    const row = page.locator("div.flex.items-center.justify-between.py-2", {
+    const row = page.locator("div.flex.items-center.justify-between.py-3", {
       has: page.locator(`text="${taskLabel}"`),
     })
     const plusBtn = row.getByRole("button", { name: "+" })
@@ -101,7 +101,7 @@ test.describe("Fair Task Allocator — end-to-end", () => {
   // ── 3. Host lobby ───────────────────────────────────────────────────────
   test("Go to Session lands on the host lobby", async () => {
     await hostPage.getByRole("button", { name: "Go to Session →" }).click()
-    await expect(hostPage.getByRole("heading", { name: "Host Lobby" })).toBeVisible({
+    await expect(hostPage.getByText("Host Lobby")).toBeVisible({
       timeout: 10000,
     })
     // All three participants shown as Waiting
@@ -174,17 +174,17 @@ test.describe("Fair Task Allocator — end-to-end", () => {
     await expect(hostPage.getByRole("heading", { name: "Hi, Alice!" })).toBeVisible()
 
     // Distribute all 10 coins
-    const writeRow = hostPage.locator("div.flex.items-center.justify-between.py-2", {
+    const writeRow = hostPage.locator("div.flex.items-center.justify-between.py-3", {
       has: hostPage.locator('text="Write report"'),
     })
     for (let i = 0; i < 4; i++) await writeRow.getByRole("button", { name: "+" }).click()
 
-    const slidesRow = hostPage.locator("div.flex.items-center.justify-between.py-2", {
+    const slidesRow = hostPage.locator("div.flex.items-center.justify-between.py-3", {
       has: hostPage.locator('text="Build slides"'),
     })
     for (let i = 0; i < 3; i++) await slidesRow.getByRole("button", { name: "+" }).click()
 
-    const videoRow = hostPage.locator("div.flex.items-center.justify-between.py-2", {
+    const videoRow = hostPage.locator("div.flex.items-center.justify-between.py-3", {
       has: hostPage.locator('text="Record video"'),
     })
     for (let i = 0; i < 3; i++) await videoRow.getByRole("button", { name: "+" }).click()
@@ -193,7 +193,7 @@ test.describe("Fair Task Allocator — end-to-end", () => {
     await expect(hostPage.getByText("Vote submitted!")).toBeVisible()
 
     // Host returns to lobby (not results)
-    await expect(hostPage.getByRole("heading", { name: "Host Lobby" })).toBeVisible({
+    await expect(hostPage.getByText("Host Lobby")).toBeVisible({
       timeout: 5000,
     })
     // "View Results →" button appears
@@ -206,7 +206,7 @@ test.describe("Fair Task Allocator — end-to-end", () => {
   test("results page shows the allocation and a New Session link", async ({ browser }) => {
     // Navigate via "View Results →" in the host lobby
     await hostPage.getByRole("button", { name: "View Results →" }).click()
-    await expect(hostPage.getByRole("heading", { name: "Task Allocation Results" })).toBeVisible({
+    await expect(hostPage.getByRole("heading", { name: "Task Allocation" })).toBeVisible({
       timeout: 10000,
     })
 
@@ -219,13 +219,13 @@ test.describe("Fair Task Allocator — end-to-end", () => {
     const newSessionLink = hostPage.getByRole("link", { name: "Start a new session" })
     await expect(newSessionLink).toBeVisible()
     await newSessionLink.click()
-    await expect(hostPage).toHaveURL("/")
+    await expect(hostPage).toHaveURL("/create")
 
     // Also verify a participant arriving directly at results sees the page
     const guestCtx = await browser.newContext()
     const guestPage = await guestCtx.newPage()
     await guestPage.goto(sessionUrl + "/results")
-    await expect(guestPage.getByRole("heading", { name: "Task Allocation Results" })).toBeVisible({
+    await expect(guestPage.getByRole("heading", { name: "Task Allocation" })).toBeVisible({
       timeout: 10000,
     })
     await guestCtx.close()

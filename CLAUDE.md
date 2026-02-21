@@ -50,3 +50,17 @@ Please execute the development in the following iterative phases. Do not build e
   * Connect the application to Supabase.
   * Store sessions, tasks, participants, and votes in the database.
   * Implement real-time or polling updates to check if all participants have voted.
+
+## 6. Testing Requirements
+After completing any iteration (feature, fix, or redesign), you MUST run the full test suite before committing. Both layers must pass:
+
+1. **Unit tests** — `npm test`
+   * Covers the allocation algorithm in `src/lib/algorithm.ts`.
+   * All tests must pass with no failures.
+
+2. **End-to-end tests** — `npx playwright test`
+   * Covers the full session flow in the browser (create → vote → results).
+   * All 8 tests must pass with no failures.
+   * If UI changes break selectors or assertions, update the e2e tests to match the new UI before committing.
+
+Only commit once both commands exit cleanly. Never skip or comment out failing tests to make the suite pass.
