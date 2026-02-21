@@ -2,16 +2,73 @@ import type { Task, Participant, Vote, Assignment } from "./types"
 
 const FEWER_TASKS_TASK_ID = null // votes with task_id = null mean "Fewer Tasks"
 
+// ── Min-Cost Max-Flow helpers ───────────────────────────────────────────────
+
+interface MCMFEdge {
+  to: number
+  cap: number
+  cost: number
+  flow: number
+  rev: number
+}
+
+type Graph = MCMFEdge[][]
+
+function mcmfAddEdge(graph: Graph, u: number, v: number, cap: number, cost: number): void {
+  graph[u].push({ to: v, cap, cost, flow: 0, rev: graph[v].length })
+  graph[v].push({ to: u, cap: 0, cost: -cost, flow: 0, rev: graph[u].length - 1 })
+}
+
+function minCostMaxFlow(graph: Graph, s: number, t: number, nodeCount: number): void {
+  while (true) {
+    const dist = new Array<number>(nodeCount).fill(Infinity)
+    const inQueue = new Array<boolean>(nodeCount).fill(false)
+    const prevNode = new Array<number>(nodeCount).fill(-1)
+    const prevEdge = new Array<number>(nodeCount).fill(-1)
+
+    dist[s] = 0
+    const queue: number[] = [s]
+    inQueue[s] = true
+
+    while (queue.length > 0) {
+      const u = queue.shift()!
+      inQueue[u] = false
+      for (let i = 0; i < graph[u].length; i++) {
+        const e = graph[u][i]
+        if (e.cap > 0 && dist[u] + e.cost < dist[e.to]) {
+          dist[e.to] = dist[u] + e.cost
+          prevNode[e.to] = u
+          prevEdge[e.to] = i
+          if (!inQueue[e.to]) { queue.push(e.to); inQueue[e.to] = true }
+        }
+      }
+    }
+
+    if (dist[t] === Infinity) break
+
+    let flow = Infinity
+    let v = t
+    while (v !== s) { flow = Math.min(flow, graph[prevNode[v]][prevEdge[v]].cap); v = prevNode[v] }
+
+    v = t
+    while (v !== s) {
+      const u = prevNode[v]; const ei = prevEdge[v]
+      graph[u][ei].cap -= flow; graph[u][ei].flow += flow
+      graph[graph[u][ei].to][graph[u][ei].rev].cap += flow
+      v = u
+    }
+  }
+}
+
 /**
  * Assigns tasks to participants using a two-step algorithm:
  *
  * 1. Capacity determination — participants who placed more coins on
  *    "Fewer Tasks" are awarded a lower task cap (base tasks instead of base+1).
  *
- * 2. Greedy capacitated assignment — iterate vote weights descending; assign
- *    a task to a participant when both the task is still unassigned and the
- *    participant still has remaining capacity. Any leftover tasks are force-
- *    assigned to participants with spare capacity.
+ * 2. Optimal assignment via Min-Cost Max-Flow — considers all possible
+ *    assignments simultaneously and picks the combination that maximises
+ *    total coin satisfaction across the whole group.
  */
 export function calculateDistribution(
   tasks: Task[],
@@ -61,41 +118,55 @@ export function calculateDistribution(
   // The sorted loop already handles this because P - extra === P, so every
   // participant hits the first branch (capacity = base).
 
-  // ── Step 2: Greedy assignment ───────────────────────────────────────────
-  // Collect (participant_id, task_id, coins) for all real-task votes
-  type WeightedVote = { participant_id: string; task_id: string; coins: number }
-  const weightedVotes: WeightedVote[] = votes
-    .filter((v): v is Vote & { task_id: string } => v.task_id !== FEWER_TASKS_TASK_ID && v.coins > 0)
-    .map((v) => ({ participant_id: v.participant_id, task_id: v.task_id, coins: v.coins }))
+  // ── Step 2: Optimal assignment via Min-Cost Max-Flow ─────────────────────
+  // Graph layout:
+  //   Node 0      : source (S)
+  //   Nodes 1..N  : one per task
+  //   Nodes N+1..N+P : one per participant
+  //   Node N+P+1  : sink (T)
+  const S = 0, T = N + P + 1, nodeCount = N + P + 2
 
-  // Sort descending by coin weight
-  weightedVotes.sort((a, b) => b.coins - a.coins)
+  const taskIndex = new Map(tasks.map((t, i) => [t.id, i]))
+  const participantIndex = new Map(participants.map((p, i) => [p.id, i]))
 
-  const assignedTask = new Set<string>()
-  const remainingCap: Record<string, number> = { ...capacity }
+  // Build coin-weight matrix (negated costs so MCMF minimises → maximises satisfaction)
+  const coinWeight: number[][] = Array.from({ length: N }, () => new Array<number>(P).fill(0))
+  for (const v of votes) {
+    if (v.task_id === FEWER_TASKS_TASK_ID) continue
+    const ti = taskIndex.get(v.task_id!), pi = participantIndex.get(v.participant_id)
+    if (ti !== undefined && pi !== undefined) coinWeight[ti][pi] = v.coins
+  }
+
+  const graph: Graph = Array.from({ length: nodeCount }, () => [])
+  for (let ti = 0; ti < N; ti++) mcmfAddEdge(graph, S, ti + 1, 1, 0)
+  for (let ti = 0; ti < N; ti++)
+    for (let pi = 0; pi < P; pi++)
+      mcmfAddEdge(graph, ti + 1, N + pi + 1, 1, -coinWeight[ti][pi])
+  participants.forEach((p, pi) => mcmfAddEdge(graph, N + pi + 1, T, capacity[p.id], 0))
+
+  minCostMaxFlow(graph, S, T, nodeCount)
+
   const assignments: Record<string, string[]> = {}
   participants.forEach((p) => (assignments[p.id] = []))
 
-  // Greedy pass
-  for (const wv of weightedVotes) {
-    if (assignedTask.has(wv.task_id)) continue
-    if ((remainingCap[wv.participant_id] ?? 0) <= 0) continue
-    assignedTask.add(wv.task_id)
-    assignments[wv.participant_id].push(wv.task_id)
-    remainingCap[wv.participant_id]--
+  for (let ti = 0; ti < N; ti++) {
+    for (const edge of graph[ti + 1]) {
+      if (edge.to >= N + 1 && edge.to <= N + P && edge.cap === 0) {
+        assignments[participants[edge.to - N - 1].id].push(tasks[ti].id)
+        break
+      }
+    }
   }
 
-  // Force-assign leftover tasks
-  const unassigned = tasks.filter((t) => !assignedTask.has(t.id))
-
-  for (const task of unassigned) {
-    const pick = participants
-      .filter((p) => (remainingCap[p.id] ?? 0) > 0)
-      .sort((a, b) => (remainingCap[b.id] ?? 0) - (remainingCap[a.id] ?? 0))[0]
+  // Safety net: force-assign any tasks left unrouted (should never trigger)
+  const assignedTask = new Set(Object.values(assignments).flat())
+  const remainingCap: Record<string, number> = {}
+  participants.forEach((p) => { remainingCap[p.id] = capacity[p.id] - assignments[p.id].length })
+  for (const task of tasks.filter((t) => !assignedTask.has(t.id))) {
+    const pick = participants.filter((p) => remainingCap[p.id] > 0)
+      .sort((a, b) => remainingCap[b.id] - remainingCap[a.id])[0]
     if (!pick) break
-    assignedTask.add(task.id)
-    assignments[pick.id].push(task.id)
-    remainingCap[pick.id]--
+    assignments[pick.id].push(task.id); remainingCap[pick.id]--
   }
 
   // ── Step 3: Build result ────────────────────────────────────────────────

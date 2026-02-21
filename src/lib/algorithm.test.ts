@@ -190,4 +190,44 @@ describe("calculateDistribution", () => {
     const allIds = result.flatMap((a) => a.tasks.map((t) => t.id))
     expect(new Set(allIds).size).toBe(4)
   })
+
+  // ── MCMF optimality ───────────────────────────────────────────────────
+
+  test("MCMF beats greedy: Alice gets both preferred tasks instead of a forced one", () => {
+    // Bob's votes appear first → greedy would assign Bob T2 (ties Alice's T2=3)
+    // leaving Alice force-assigned T3 with 0 satisfaction.
+    // MCMF: Alice→{T1,T2}, Bob→{T3,T4}. Total satisfied = 5+3+2+1 = 11 vs greedy 9.
+    const participants = makeParticipants(["Alice", "Bob"])
+    const tasks = makeTasks(["T1", "T2", "T3", "T4"])
+    const votes: Vote[] = [
+      vote("p2", "t1", 4), vote("p2", "t2", 3), vote("p2", "t3", 2), vote("p2", "t4", 1),
+      vote("p1", "t1", 5), vote("p1", "t2", 3),
+    ]
+    const result = calculateDistribution(tasks, participants, votes)
+    const alice = result.find((a) => a.participant_id === "p1")!
+    const bob   = result.find((a) => a.participant_id === "p2")!
+    expect(alice.tasks).toHaveLength(2)
+    expect(bob.tasks).toHaveLength(2)
+    expect(new Set(result.flatMap((a) => a.tasks.map((t) => t.id))).size).toBe(4)
+    expect(alice.tasks.map((t) => t.id).sort()).toEqual(["t1", "t2"])
+    expect(bob.tasks.map((t) => t.id).sort()).toEqual(["t3", "t4"])
+  })
+
+  test("MCMF optimal: highest bidder wins contested tasks across 3 participants", () => {
+    // 3 participants, 6 tasks → each gets exactly 2
+    // Alice: T1=7, T2=3  |  Bob: T1=5, T3=5  |  Carol: T2=6, T4=4
+    // Alice wins T1 (7>5), Carol wins T2 (6>3), Bob wins T3; remaining force-assigned
+    const participants = makeParticipants(["Alice", "Bob", "Carol"])
+    const tasks = makeTasks(["T1", "T2", "T3", "T4", "T5", "T6"])
+    const votes: Vote[] = [
+      vote("p2", "t1", 5), vote("p2", "t3", 5),
+      vote("p3", "t2", 6), vote("p3", "t4", 4),
+      vote("p1", "t1", 7), vote("p1", "t2", 3),
+    ]
+    const result = calculateDistribution(tasks, participants, votes)
+    expect(result.every((a) => a.tasks.length === 2)).toBe(true)
+    expect(new Set(result.flatMap((a) => a.tasks.map((t) => t.id))).size).toBe(6)
+    expect(result.find((a) => a.participant_id === "p1")!.tasks.some((t) => t.id === "t1")).toBe(true)
+    expect(result.find((a) => a.participant_id === "p3")!.tasks.some((t) => t.id === "t2")).toBe(true)
+  })
 })
