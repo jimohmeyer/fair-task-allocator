@@ -8,6 +8,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/Navbar"
 import { getSupabase } from "@/lib/supabase"
+
+const terra = "oklch(0.50 0.11 48)"
+const terraTint = (a: number) => `oklch(0.50 0.11 48 / ${a})`
+const cardBg = "oklch(0.94 0.012 78)"
+const borderCol = "oklch(0.86 0.014 76)"
 import { calculateDistribution } from "@/lib/algorithm"
 import type { Participant, Task, Vote, Assignment } from "@/lib/types"
 
@@ -105,15 +110,15 @@ export default function ResultsPage() {
             <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
               <div
                 className="absolute inset-0 rounded-full animate-ping"
-                style={{ background: "oklch(0.78 0.17 75 / 0.2)" }}
+                style={{ background: terraTint(0.18) }}
               />
               <div
                 className="absolute inset-3 rounded-full animate-pulse"
-                style={{ background: "oklch(0.78 0.17 75 / 0.15)" }}
+                style={{ background: terraTint(0.14) }}
               />
               <div
                 className="relative w-12 h-12 rounded-full"
-                style={{ background: "oklch(0.78 0.17 75 / 0.3)" }}
+                style={{ background: terraTint(0.28) }}
               />
             </div>
             <div className="space-y-2">
@@ -127,13 +132,13 @@ export default function ResultsPage() {
             <div
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm border"
               style={{
-                borderColor: "oklch(0.78 0.17 75 / 0.2)",
-                color: "oklch(0.78 0.17 75 / 0.7)",
+                borderColor: terraTint(0.25),
+                color: terraTint(0.7),
               }}
             >
               <span
                 className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ background: "oklch(0.78 0.17 75)" }}
+                style={{ background: terra }}
               />
               Checking every 3 seconds
             </div>
@@ -153,7 +158,7 @@ export default function ResultsPage() {
       <div className="pointer-events-none fixed inset-0 flex items-start justify-center overflow-hidden -z-10">
         <div
           className="w-[600px] h-[400px] rounded-full blur-[120px] mt-24"
-          style={{ background: "oklch(0.78 0.17 75 / 0.10)" }}
+          style={{ background: terraTint(0.12) }}
         />
       </div>
 
@@ -175,7 +180,7 @@ export default function ResultsPage() {
             <div className="grid grid-cols-3 gap-4">
               <div
                 className="rounded-2xl border p-5 text-center"
-                style={{ borderColor: "oklch(0.22 0 0)", background: "oklch(0.13 0 0)" }}
+                style={{ borderColor: borderCol, background: cardBg }}
               >
                 <p className="text-3xl font-bold tabular-nums">{totalTasksAssigned}</p>
                 <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wide">
@@ -184,7 +189,7 @@ export default function ResultsPage() {
               </div>
               <div
                 className="rounded-2xl border p-5 text-center"
-                style={{ borderColor: "oklch(0.22 0 0)", background: "oklch(0.13 0 0)" }}
+                style={{ borderColor: borderCol, background: cardBg }}
               >
                 <p className="text-3xl font-bold tabular-nums">{results.length}</p>
                 <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wide">
@@ -193,14 +198,9 @@ export default function ResultsPage() {
               </div>
               <div
                 className="rounded-2xl border p-5 text-center"
-                style={{ borderColor: "oklch(0.22 0 0)", background: "oklch(0.13 0 0)" }}
+                style={{ borderColor: borderCol, background: cardBg }}
               >
-                <p
-                  className="text-3xl font-bold"
-                  style={{ color: "oklch(0.78 0.17 75)" }}
-                >
-                  ✓
-                </p>
+                <p className="text-3xl font-bold" style={{ color: terra }}>✓</p>
                 <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wide">
                   Preferences optimized
                 </p>
@@ -211,19 +211,19 @@ export default function ResultsPage() {
           {/* Results grid */}
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {(results ?? []).map((assignment, idx) => {
-              const hues = [75, 55, 90, 65]
+              const hues = [48, 38, 58, 68]
               const hue = hues[idx % hues.length]
               return (
                 <Card
                   key={assignment.participant_id}
                   className="overflow-hidden relative"
-                  style={{ borderColor: "oklch(0.22 0 0)" }}
+                  style={{ borderColor: borderCol }}
                 >
                   {/* Gradient top accent border */}
                   <div
                     className="absolute top-0 inset-x-0 h-0.5"
                     style={{
-                      background: `linear-gradient(90deg, oklch(0.78 0.17 ${hue} / 0.8), oklch(0.78 0.17 ${hue} / 0.2))`,
+                      background: `linear-gradient(90deg, oklch(0.50 0.13 ${hue} / 0.8), oklch(0.50 0.13 ${hue} / 0.15))`,
                     }}
                   />
                   <CardHeader className="pb-3 pt-6">
@@ -232,8 +232,8 @@ export default function ResultsPage() {
                       <Badge
                         variant="secondary"
                         style={{
-                          background: "oklch(0.78 0.17 75 / 0.1)",
-                          color: "oklch(0.78 0.17 75)",
+                          background: terraTint(0.10),
+                          color: terra,
                         }}
                       >
                         {assignment.tasks.length} task{assignment.tasks.length !== 1 ? "s" : ""}
@@ -247,8 +247,8 @@ export default function ResultsPage() {
                           <span
                             className="shrink-0 w-5 h-5 rounded-full text-xs flex items-center justify-center font-semibold mt-px"
                             style={{
-                              background: "oklch(0.78 0.17 75 / 0.12)",
-                              color: "oklch(0.78 0.17 75 / 0.8)",
+                              background: terraTint(0.12),
+                              color: terraTint(0.8),
                             }}
                           >
                             {taskIdx + 1}
