@@ -4,16 +4,18 @@ A preference-based, coin-weighted task distribution app that fairly divides recu
 
 ## Description
 
-Fair Task Allocator lets a group distribute recurring tasks (e.g., university assignments, household chores) using a gamified voting system. Each participant gets exactly 10 coins to express their preferences across available tasks. Once everyone votes, a Min-Cost Max-Flow algorithm computes the assignment that maximizes total group satisfaction while respecting each person's workload preferences.
+Fair Task Allocator lets a group distribute recurring tasks (e.g., university assignments, household chores) using a gamified voting system. Each participant gets a fixed number of coins — 5, 10, or 15, chosen by the host — to express their preferences across available tasks. Once everyone votes, a Min-Cost Max-Flow algorithm computes the assignment that maximizes total group satisfaction while respecting each person's workload preferences.
 
 ## Features
 
-- 10-coin preference voting system — distribute coins to signal what you want
+- Configurable coin budget — host chooses 5, 10, or 15 coins per participant
 - "Fewer Tasks" capacity preference option for workload balancing
 - Optimal task assignment via Min-Cost Max-Flow algorithm
 - Real-time lobby with polling — see who has voted
-- Shareable session links — participants join via URL
-- Dark amber UI built with shadcn/ui and Tailwind CSS
+- Shareable session links — participants join via URL; completed sessions redirect directly to results
+- Vote transparency — results page shows each person's coin bids and a full breakdown matrix
+- Per-person satisfaction score — percentage of coins that landed on assigned tasks
+- Editorial Tech UI: warm light theme, Playfair Display headings, Inter body, shadcn/ui + Tailwind CSS
 
 ## Tech Stack
 
@@ -23,20 +25,21 @@ Fair Task Allocator lets a group distribute recurring tasks (e.g., university as
 | Language | TypeScript |
 | Styling | Tailwind CSS v4 |
 | UI Components | shadcn/ui + Radix UI |
+| Animations | Framer Motion |
 | Database | Supabase (PostgreSQL) |
 | Testing | Jest (unit) + Playwright (e2e) |
 
 ## How It Works
 
-1. **Host creates a session** — enters participant names and task titles, then shares the generated session link.
-2. **Participants vote** — each person opens the link, picks their name, and distributes exactly 10 coins across the task list (including the "Fewer Tasks" option if they prefer a lighter load).
-3. **Algorithm computes results** — once everyone has voted, the optimal assignment is displayed showing who got which tasks.
+1. **Host creates a session** — enters participant names and task titles, picks a coin budget (5, 10, or 15), then shares the generated session link.
+2. **Participants vote** — each person opens the link, picks their name, and distributes their coins across the task list (including the "Fewer Tasks" option if they prefer a lighter load).
+3. **Algorithm computes results** — once everyone has voted, the shareable link redirects to the results page showing the final distribution, each person's coin bids, and their satisfaction score.
 
 ### The Algorithm
 
 Task assignment runs in two steps inside `src/lib/algorithm.ts`:
 
-1. **Capacity determination** — coins placed on "Fewer Tasks" control how many tasks each person receives. Participants who weighted this option more heavily are assigned a lower task cap (`base` tasks instead of `base + 1`), where `base = floor(total_tasks / total_participants)`.
+1. **Capacity determination** — coins placed on "Fewer Tasks" control how many tasks each person receives. Participants who weighted this option more heavily are assigned a lower task cap (`base` tasks instead of `base + 1`), where `base = floor(total_tasks / total_participants)`. Ties are broken by participant ID order (deterministic and unbiased).
 
 2. **Min-Cost Max-Flow** — a bipartite graph is constructed with tasks on one side and participants on the other. Edge costs are the negated coin weights (so minimizing cost = maximizing satisfaction). MCMF finds the flow that assigns every task to exactly one participant while respecting per-person capacity and maximizing total coin satisfaction across the group.
 
@@ -57,7 +60,7 @@ npm install
 
 ### Environment Variables
 
-Copy `.env.local.example` to `.env.local` and fill in your Supabase credentials:
+Create a `.env.local` file with your Supabase credentials:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
@@ -111,7 +114,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Testing
 
 ```bash
-npm test              # Unit tests (Jest) — 11 tests covering the allocation algorithm
+npm test              # Unit tests (Jest) — 10 tests covering the allocation algorithm
 npx playwright test   # E2E tests (Playwright) — 8 tests for the full session flow
 ```
 
@@ -126,13 +129,15 @@ src/
   app/
     page.tsx                        # Landing page
     create/page.tsx                 # Host session creation
-    session/[id]/page.tsx           # Participant voting lobby
-    session/[id]/results/page.tsx   # Results / assignment display
+    session/[id]/page.tsx           # Participant voting + host lobby
+    session/[id]/results/page.tsx   # Results, vote breakdown, satisfaction scores
   lib/
     algorithm.ts                    # Min-Cost Max-Flow allocation logic
     algorithm.test.ts               # Jest unit tests
     types.ts                        # TypeScript interfaces (Session, Participant, Task, Vote)
     supabase.ts                     # Supabase client singleton
+  components/
+    Navbar.tsx                      # Shared navigation bar
 e2e/
   session.spec.ts                   # Playwright end-to-end tests
 ```
