@@ -640,7 +640,7 @@ export default function SessionPage() {
         ] = await Promise.all([
           supabase
             .from("sessions")
-            .select("coins_per_participant")
+            .select("coins_per_participant, all_voted")
             .eq("id", sessionId)
             .single(),
           supabase
@@ -658,6 +658,11 @@ export default function SessionPage() {
         if (sErr) throw sErr
         if (pErr) throw pErr
         if (tErr) throw tErr
+
+        if (sessionData?.all_voted) {
+          router.replace(`/session/${sessionId}/results`)
+          return
+        }
 
         setTotalCoins(sessionData?.coins_per_participant ?? 10)
         setParticipants(participantsData ?? [])
