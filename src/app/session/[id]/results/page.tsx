@@ -168,6 +168,12 @@ export default function ResultsPage() {
   // Derived lookups — built once at render time, no extra fetch
   const coinLookup = buildCoinLookup(voteData)
 
+  // Total coins spent per participant (denominator for satisfaction %)
+  const totalCoinsByParticipant: Record<string, number> = {}
+  for (const v of voteData) {
+    totalCoinsByParticipant[v.participant_id] = (totalCoinsByParticipant[v.participant_id] ?? 0) + v.coins
+  }
+
   // taskId -> participantId (which person was assigned this task)
   const assignedTo = new Map<string, string>()
   for (const a of results ?? []) {
@@ -294,6 +300,37 @@ export default function ResultsPage() {
                         )
                       })}
                     </ol>
+
+                    {/* Satisfaction score */}
+                    {(() => {
+                      const coinsOnAssigned = assignment.tasks.reduce(
+                        (sum, task) => sum + (coinLookup[assignment.participant_id]?.[task.id] ?? 0),
+                        0
+                      )
+                      const total = totalCoinsByParticipant[assignment.participant_id] || 10
+                      const pct = Math.round((coinsOnAssigned / total) * 100)
+                      return (
+                        <div className="mt-4 pt-4 border-t" style={{ borderColor: borderCol }}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs text-muted-foreground font-sans uppercase tracking-wide">
+                              Satisfaction
+                            </span>
+                            <span
+                              className="text-xs font-semibold tabular-nums font-sans"
+                              style={{ color: terra }}
+                            >
+                              {pct}%
+                            </span>
+                          </div>
+                          <div className="h-1 rounded-full overflow-hidden bg-border/50">
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${pct}%`, background: terra }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </CardContent>
                 </Card>
               )

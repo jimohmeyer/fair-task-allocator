@@ -89,23 +89,18 @@ export function calculateDistribution(
   const fewerCoins: Record<string, number> = {}
   participants.forEach((p) => (fewerCoins[p.id] = 0))
 
-  // Track submission order for tie-breaking (earlier index = higher priority for fewer tasks)
-  // We rely on the order participants appear in the votes array for tie-breaking.
-  const firstVoteIndex: Record<string, number> = {}
-  votes.forEach((v, i) => {
-    if (!(v.participant_id in firstVoteIndex)) {
-      firstVoteIndex[v.participant_id] = i
-    }
+  votes.forEach((v) => {
     if (v.task_id === FEWER_TASKS_TASK_ID) {
       fewerCoins[v.participant_id] = (fewerCoins[v.participant_id] ?? 0) + v.coins
     }
   })
 
-  // Sort participants: most fewer-task coins first; ties broken by earlier vote
+  // Sort participants: most fewer-task coins first; ties broken by participant ID
+  // (UUIDs are randomly assigned at creation, so ID order is an unbiased tie-break)
   const sorted = [...participants].sort((a, b) => {
     const coinDiff = (fewerCoins[b.id] ?? 0) - (fewerCoins[a.id] ?? 0)
     if (coinDiff !== 0) return coinDiff
-    return (firstVoteIndex[a.id] ?? Infinity) - (firstVoteIndex[b.id] ?? Infinity)
+    return a.id < b.id ? -1 : 1
   })
 
   // Top (P - extra) participants get base capacity; the rest get base + 1

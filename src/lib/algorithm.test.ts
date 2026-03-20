@@ -144,16 +144,15 @@ describe("calculateDistribution", () => {
 
   // ── Tie-breaking ──────────────────────────────────────────────────────
 
-  test("tie on fewer-tasks coins broken by vote submission order (earlier = fewer tasks)", () => {
+  test("tie on fewer-tasks coins broken by participant ID order (deterministic)", () => {
     // 3 participants, 7 tasks → base=2, extra=1 → 2 get 2 tasks, 1 gets 3
-    // p1 and p2 both put 3 coins on fewer-tasks; p1 voted first → p1 gets fewer (2)
+    // p1 and p2 both put 3 coins on fewer-tasks; both sort before p3 (0 coins)
+    // so both get capacity=2 regardless of which wins the tie between them
     const participants = makeParticipants(["First", "Second", "Third"])
     const tasks = makeTasks(Array.from({ length: 7 }, (_, i) => `T${i + 1}`))
 
     const votes: Vote[] = [
-      // p1 votes first
       vote("p1", null, 3), vote("p1", "t1", 4), vote("p1", "t2", 3),
-      // p2 votes second (same fewer-tasks coins)
       vote("p2", null, 3), vote("p2", "t3", 4), vote("p2", "t4", 3),
       // p3 no fewer-tasks preference
       vote("p3", "t5", 4), vote("p3", "t6", 3), vote("p3", "t7", 3),
@@ -163,7 +162,7 @@ describe("calculateDistribution", () => {
     const totalAssigned = result.reduce((s, a) => s + a.tasks.length, 0)
     expect(totalAssigned).toBe(7)
 
-    // p1 and p2 both tied with fewer-tasks coins; earlier submitter (p1) gets fewer tasks
+    // p1 and p2 both have more fewer-tasks coins than p3 → both get capacity=2
     const first = result.find((a) => a.participant_id === "p1")!
     const second = result.find((a) => a.participant_id === "p2")!
     expect(first.tasks.length).toBe(2)
