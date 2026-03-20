@@ -210,9 +210,9 @@ test.describe("Fair Task Allocator — end-to-end", () => {
       timeout: 10000,
     })
 
-    // Every task should appear exactly once
+    // Every task should appear on the page (may appear in both assignment cards and breakdown table)
     for (const task of ["Write report", "Build slides", "Record video"]) {
-      await expect(hostPage.getByText(task)).toBeVisible()
+      await expect(hostPage.getByText(task).first()).toBeVisible()
     }
 
     // "Start a new session" link exists and navigates home
