@@ -1,66 +1,77 @@
-# Project: Task Allocator (Coin Voting System)
+# Project: Fair Task Allocator
 
 ## 1. Project Overview
-We are building a web application to fairly distribute a set of recurring tasks (e.g., university assignments) among a group of people (usually around 4 participants, but should be dynamic). 
-To make the distribution fair and preference-based, we use a gamified voting system: Each participant gets exactly 10 "coins" to weight their preferences.
+A web application that fairly distributes recurring tasks (e.g., university assignments) among a group using a coin-weighted voting system. Each participant gets a fixed budget of coins — 5, 10, or 15, chosen by the host — to express preferences. A Min-Cost Max-Flow algorithm then finds the globally optimal assignment.
+
+The app is fully built and deployed. This file guides future AI sessions on constraints, conventions, and decisions already made.
 
 ## 2. Core Mechanics & Rules
-* **The "10 Coins" Rule:** Every participant has exactly 10 coins to distribute across the available tasks.
-* **The "Fewer Tasks" Option:** Because tasks often cannot be divided equally (e.g., 14 tasks for 4 people), there must be a permanent voting option called "Fewer Tasks (Capacity Bonus)". Placing coins here signals a preference to receive a smaller total quantity of tasks.
-* **Hard Constraint:** Every single task MUST be assigned to exactly one person at the end of the process. No tasks can be left unassigned.
-* **Soft Constraint (Optimization):** The allocation algorithm should maximize the overall group satisfaction (highest sum of fulfilled coin weights) while respecting the "Fewer Tasks" weighting.
+- **Configurable coin budget:** The host picks 5, 10, or 15 coins per participant at session creation. 10 is the default.
+- **The "Fewer Tasks" option:** A permanent voting option that lets participants signal a preference for a lighter workload. Coins placed here lower a participant's task capacity in the algorithm.
+- **Hard constraint:** Every task must be assigned to exactly one person. No task may be left unassigned.
+- **Soft constraint:** The algorithm maximises total group coin satisfaction (sum of coins on assigned tasks across all participants).
+- **Tie-breaking:** When participants are tied on "Fewer Tasks" coins, the tie is broken by participant ID string order — deterministic and unbiased since Supabase assigns UUIDs randomly at creation time.
 
 ## 3. Tech Stack
-* **Framework:** Next.js (App Router)
-* **Language:** TypeScript
-* **Styling:** Tailwind CSS
-* **UI Components:** shadcn/ui (use this for buttons, inputs, sliders, cards, etc.)
-* **Database / Backend:** Supabase
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS v4 |
+| UI Components | shadcn/ui (new-york style) + Radix UI |
+| Animations | Framer Motion |
+| Database | Supabase (PostgreSQL) |
+| Fonts | Playfair Display (headings) + Inter (body) via `next/font/google` |
+| Testing | Jest (unit) + Playwright (e2e) |
+| Deployment | Vercel (auto-deploy on push to `main`) |
 
-## 4. User Flow
-1. **Host View (Session Creation):**
-   * Input host name.
-   * Add participant names dynamically.
-   * Add task titles dynamically.
-   * Generate a shareable session link.
-2. **Participant View (Voting):**
-   * Open link, select own name from the participant list.
-   * View all tasks + the "Fewer Tasks" option.
-   * Distribute exactly 10 coins using visual +/- buttons.
-   * Submit vote.
-3. **Result View (Distribution):**
-   * Triggered once all participants have voted.
-   * Displays the final calculated allocation (who got which task).
+## 4. Design System
+The UI follows an **Editorial Tech** aesthetic — warm, light, and typographically driven. Do not introduce cold grays, pure white/black, or a dark theme.
 
-## 5. Development Phases for the AI Agent
-Please execute the development in the following iterative phases. Do not build everything at once. Ask for review after each phase.
+**Color palette (oklch):**
+- Background: `oklch(0.97 0.010 80)` — warm off-white
+- Foreground: `oklch(0.20 0.012 65)` — deep warm charcoal
+- Primary (terracotta): `oklch(0.50 0.11 48)` — used for accents, highlights, CTAs
+- Card: `oklch(0.94 0.012 78)`
+- Border: `oklch(0.86 0.014 76)`
+- Muted foreground: `oklch(0.47 0.018 68)`
 
-* **Phase 1: Data Modeling & Setup**
-  * Define TypeScript interfaces for `Session`, `Participant`, `Task`, and `Vote`.
-  * Set up the basic Next.js page structure.
-* **Phase 2: Static UI (Mock Data)**
-  * Build the Host creation UI.
-  * Build the Participant voting UI (ensure the 10-coin logic works on the client side).
-  * Use shadcn/ui components for a clean, modern look.
-* **Phase 3: The Allocation Algorithm (Crucial)**
-  * Create an isolated utility function `calculateDistribution(tasks, participants, votes)`.
-  * This function must solve the assignment problem mathematically.
-  * Write unit tests with dummy data (e.g., 4 people, 14 tasks) to verify the logic works flawlessly before integrating it into the UI.
-* **Phase 4: Backend Integration**
-  * Connect the application to Supabase.
-  * Store sessions, tasks, participants, and votes in the database.
-  * Implement real-time or polling updates to check if all participants have voted.
+These are defined as CSS variables in `src/app/globals.css`. Inner pages use inline `style={{}}` with hardcoded oklch values where opacity variants are needed (e.g. `oklch(0.50 0.11 48 / 0.15)`), since CSS custom properties don't support alpha variants in all contexts.
 
-## 6. Testing Requirements
-After completing any iteration (feature, fix, or redesign), you MUST run the full test suite before committing. Both layers must pass:
+**Typography:**
+- `font-serif` (Playfair Display) on all `h1`–`h4` — applied globally in `globals.css @layer base`
+- `font-sans` (Inter) on body text, labels, UI elements
+- Italic Playfair Display on hero accent spans for editorial flair
+
+**Animations (Framer Motion):**
+- Spring: `stiffness: 40, damping: 22` — slow and elegant, not bouncy
+- Stagger: `0.18s` between children
+- Hover scale: `1.02`
+- Aurora background: long loop durations (22–35s), low opacity
+
+## 5. User Flow
+1. **Host creates a session** — enters host name, participant names, task titles, and selects coin budget (5 / 10 / 15). Receives a shareable link.
+2. **Participants vote** — open the link, select their name, distribute coins across tasks and the "Fewer Tasks" option using +/− buttons, submit.
+3. **Results** — once all participants have voted, the shareable link auto-redirects to the results page showing: final task assignments, each person's coin bids per task, a full vote breakdown matrix, and a per-person satisfaction score (coins on assigned tasks ÷ total coins spent).
+
+## 6. Architecture & Key Decisions
+- **`"use client"` on `src/app/page.tsx`** — required for Framer Motion. Intentional; it only affects the landing page route.
+- **Algorithm lives in `src/lib/algorithm.ts`** — pure function `calculateDistribution(tasks, participants, votes)`. Uses Min-Cost Max-Flow (MCMF). Do not simplify to a greedy approach — MCMF is necessary for global optimality.
+- **Polling, not websockets** — the session and results pages poll Supabase every 3 seconds. Simple and sufficient for small groups.
+- **Host identity via localStorage** — `host:<sessionId>` key identifies the creating device. No auth system.
+- **Completed sessions redirect** — opening a shareable link for a completed session (`all_voted = true`) immediately redirects to `/session/[id]/results`.
+- **Coin budget is read from the session record** — the voting UI reads `coins_per_participant` from Supabase, so the algorithm and voting interface automatically adapt to whatever the host chose.
+
+## 7. Testing Requirements
+After completing any iteration (feature, fix, or redesign), run the full test suite before committing. Both layers must pass:
 
 1. **Unit tests** — `npm test`
-   * Covers the allocation algorithm in `src/lib/algorithm.ts`.
-   * All tests must pass with no failures.
+   - Covers the allocation algorithm in `src/lib/algorithm.ts`.
+   - All tests must pass with no failures.
 
 2. **End-to-end tests** — `npx playwright test`
-   * Covers the full session flow in the browser (create → vote → results).
-   * All 8 tests must pass with no failures.
-   * If UI changes break selectors or assertions, update the e2e tests to match the new UI before committing.
+   - Covers the full session flow in the browser (create → vote → results).
+   - All 8 tests must pass with no failures.
+   - If UI changes break selectors or assertions, update the e2e tests to match the new UI before committing.
 
 Only commit once both commands exit cleanly. Never skip or comment out failing tests to make the suite pass.
