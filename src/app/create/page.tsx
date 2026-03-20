@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
 import { Navbar } from "@/components/Navbar"
+
+const COIN_OPTIONS = [5, 10, 15] as const
+const terra = "oklch(0.50 0.11 48)"
+const terraTint = (a: number) => `oklch(0.50 0.11 48 / ${a})`
 import { getSupabase } from "@/lib/supabase"
 
 export default function CreatePage() {
@@ -114,7 +117,7 @@ export default function CreatePage() {
         <div className="pointer-events-none fixed inset-0 flex items-center justify-center overflow-hidden -z-10">
           <div
             className="w-[600px] h-[400px] rounded-full blur-[120px]"
-            style={{ background: "oklch(0.78 0.17 75 / 0.10)" }}
+            style={{ background: "oklch(0.50 0.11 48 / 0.10)" }}
           />
         </div>
 
@@ -123,7 +126,7 @@ export default function CreatePage() {
             <div className="text-center space-y-3">
               <div
                 className="inline-flex items-center justify-center w-14 h-14 rounded-2xl text-2xl mb-2"
-                style={{ background: "oklch(0.78 0.17 75 / 0.15)" }}
+                style={{ background: "oklch(0.50 0.11 48 / 0.15)" }}
               >
                 ✓
               </div>
@@ -172,7 +175,7 @@ export default function CreatePage() {
       <div className="pointer-events-none fixed inset-0 flex items-start justify-center overflow-hidden -z-10">
         <div
           className="w-[600px] h-[400px] rounded-full blur-[120px] mt-24"
-          style={{ background: "oklch(0.78 0.17 75 / 0.10)" }}
+          style={{ background: "oklch(0.50 0.11 48 / 0.10)" }}
         />
       </div>
 
@@ -183,14 +186,14 @@ export default function CreatePage() {
             <div
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border mb-3"
               style={{
-                borderColor: "oklch(0.78 0.17 75 / 0.4)",
-                color: "oklch(0.78 0.17 75)",
-                background: "oklch(0.78 0.17 75 / 0.08)",
+                borderColor: "oklch(0.50 0.11 48 / 0.4)",
+                color: "oklch(0.50 0.11 48)",
+                background: "oklch(0.50 0.11 48 / 0.08)",
               }}
             >
               <span
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ background: "oklch(0.78 0.17 75)" }}
+                style={{ background: "oklch(0.50 0.11 48)" }}
               />
               Step 1 of 1 · Set up your session
             </div>
@@ -228,21 +231,28 @@ export default function CreatePage() {
                   <CardTitle>Coins per participant</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label>Each participant gets</Label>
-                    <span className="text-2xl font-bold tabular-nums text-primary w-12 text-right">
-                      {coinsPerParticipant}
-                    </span>
+                  <Label>Each participant gets</Label>
+                  <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: "oklch(0.86 0.014 76)" }}>
+                    {COIN_OPTIONS.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setCoinsPerParticipant(n)}
+                        className="flex-1 py-2.5 text-sm font-semibold tabular-nums transition-colors"
+                        style={
+                          coinsPerParticipant === n
+                            ? { background: terra, color: "oklch(0.97 0.010 80)" }
+                            : { background: "transparent", color: "oklch(0.20 0.012 65)" }
+                        }
+                      >
+                        {n}
+                      </button>
+                    ))}
                   </div>
-                  <Slider
-                    min={1}
-                    max={50}
-                    step={1}
-                    value={[coinsPerParticipant]}
-                    onValueChange={([v]) => setCoinsPerParticipant(v)}
-                  />
                   <p className="text-xs text-muted-foreground">
-                    Drag to set how many coins each participant distributes across tasks (1–50).
+                    {coinsPerParticipant === 5 && "Focused — strong signals on a handful of tasks."}
+                    {coinsPerParticipant === 10 && "Balanced — the default. Good for most group sizes."}
+                    {coinsPerParticipant === 15 && "Granular — useful when participants care about many tasks."}
                   </p>
                 </CardContent>
               </Card>

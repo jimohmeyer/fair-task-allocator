@@ -128,8 +128,8 @@ export default function LandingPage() {
             variants={itemVariants}
             className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto leading-relaxed font-sans"
           >
-            Give everyone 10 coins to vote on task preferences. Our algorithm finds the
-            fairest assignment so nobody gets stuck with work they hate.
+            Give everyone 5, 10, or 15 coins to vote on task preferences. Our algorithm
+            finds the fairest assignment so nobody gets stuck with work they hate.
           </motion.p>
 
           <motion.div
@@ -249,14 +249,14 @@ export default function LandingPage() {
               </div>
               <div>
                 <p
-                  className="text-6xl font-black tabular-nums mb-2 font-serif"
+                  className="text-5xl font-black tabular-nums mb-2 font-serif"
                   style={{ color: terra }}
                 >
-                  10
+                  5–15
                 </p>
                 <h3 className="text-base font-semibold mb-1">Coins per person</h3>
                 <p className="text-muted-foreground text-xs leading-relaxed font-sans">
-                  Limited votes that carry real weight.
+                  Host picks 5, 10, or 15 — limited votes that carry real weight.
                 </p>
               </div>
             </motion.div>
